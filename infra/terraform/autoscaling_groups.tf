@@ -1,14 +1,51 @@
 # Auto Scaling Groups for each microservice
+# Fix: exclude subnets in us-east-1e because t3.micro is not supported there (AWS Academy common restriction)
 
+# ----------------------------
+# Subnets (default VPC)
+# ----------------------------
+data "aws_subnets" "default" {
+  filter {
+    name   = "vpc-id"
+    values = [data.aws_vpc.default.id]
+  }
+}
+
+# Get AZ per subnet so we can filter out us-east-1e
+data "aws_subnet" "default" {
+  for_each = toset(data.aws_subnets.default.ids)
+  id       = each.value
+}
+
+locals {
+  # Allowed AZs (explicitly exclude us-east-1e)
+  allowed_azs = toset([
+    "us-east-1a",
+    "us-east-1b",
+    "us-east-1c",
+    "us-east-1d",
+    "us-east-1f",
+  ])
+
+  asg_subnet_ids = [
+    for s in data.aws_subnet.default : s.id
+    if contains(local.allowed_azs, s.availability_zone)
+  ]
+}
+
+# ----------------------------
+# ASG: AUTH
+# ----------------------------
 resource "aws_autoscaling_group" "auth" {
   name                      = "${var.name_prefix}-auth-asg"
   max_size                  = 2
   min_size                  = 1
   desired_capacity          = 1
   health_check_type         = "ELB"
-  health_check_grace_period = 180
+  health_check_grace_period = 600
 
-  vpc_zone_identifier = data.aws_subnets.default.ids
+  # IMPORTANT: filtered subnets (no us-east-1e)
+  vpc_zone_identifier = local.asg_subnet_ids
 
   launch_template {
     id      = aws_launch_template.auth.id
@@ -34,7 +71,7 @@ resource "aws_autoscaling_group" "auth" {
     value               = "qa"
     propagate_at_launch = true
   }
-
+  
   tag {
     key                 = "Svc"
     value               = "auth"
@@ -42,15 +79,18 @@ resource "aws_autoscaling_group" "auth" {
   }
 }
 
+# ----------------------------
+# ASG: USERS
+# ----------------------------
 resource "aws_autoscaling_group" "users" {
   name                      = "${var.name_prefix}-users-asg"
   max_size                  = 2
   min_size                  = 1
   desired_capacity          = 1
   health_check_type         = "ELB"
-  health_check_grace_period = 180
+  health_check_grace_period = 600
 
-  vpc_zone_identifier = data.aws_subnets.default.ids
+  vpc_zone_identifier = local.asg_subnet_ids
 
   launch_template {
     id      = aws_launch_template.users.id
@@ -84,15 +124,18 @@ resource "aws_autoscaling_group" "users" {
   }
 }
 
+# ----------------------------
+# ASG: CASES
+# ----------------------------
 resource "aws_autoscaling_group" "cases" {
   name                      = "${var.name_prefix}-cases-asg"
   max_size                  = 2
   min_size                  = 1
   desired_capacity          = 1
   health_check_type         = "ELB"
-  health_check_grace_period = 180
+  health_check_grace_period = 600
 
-  vpc_zone_identifier = data.aws_subnets.default.ids
+  vpc_zone_identifier = local.asg_subnet_ids
 
   launch_template {
     id      = aws_launch_template.cases.id
@@ -126,15 +169,18 @@ resource "aws_autoscaling_group" "cases" {
   }
 }
 
+# ----------------------------
+# ASG: APPOINTMENTS
+# ----------------------------
 resource "aws_autoscaling_group" "appointments" {
   name                      = "${var.name_prefix}-appointments-asg"
   max_size                  = 2
   min_size                  = 1
   desired_capacity          = 1
   health_check_type         = "ELB"
-  health_check_grace_period = 180
+  health_check_grace_period = 600
 
-  vpc_zone_identifier = data.aws_subnets.default.ids
+  vpc_zone_identifier = local.asg_subnet_ids
 
   launch_template {
     id      = aws_launch_template.appointments.id
@@ -168,15 +214,18 @@ resource "aws_autoscaling_group" "appointments" {
   }
 }
 
+# ----------------------------
+# ASG: AUDIT
+# ----------------------------
 resource "aws_autoscaling_group" "audit" {
   name                      = "${var.name_prefix}-audit-asg"
   max_size                  = 2
   min_size                  = 1
   desired_capacity          = 1
   health_check_type         = "ELB"
-  health_check_grace_period = 180
+  health_check_grace_period = 600
 
-  vpc_zone_identifier = data.aws_subnets.default.ids
+  vpc_zone_identifier = local.asg_subnet_ids
 
   launch_template {
     id      = aws_launch_template.audit.id
@@ -210,15 +259,18 @@ resource "aws_autoscaling_group" "audit" {
   }
 }
 
+# ----------------------------
+# ASG: REPORTS
+# ----------------------------
 resource "aws_autoscaling_group" "reports" {
   name                      = "${var.name_prefix}-reports-asg"
   max_size                  = 2
   min_size                  = 1
   desired_capacity          = 1
   health_check_type         = "ELB"
-  health_check_grace_period = 180
+  health_check_grace_period = 600
 
-  vpc_zone_identifier = data.aws_subnets.default.ids
+  vpc_zone_identifier = local.asg_subnet_ids
 
   launch_template {
     id      = aws_launch_template.reports.id
@@ -252,15 +304,18 @@ resource "aws_autoscaling_group" "reports" {
   }
 }
 
+# ----------------------------
+# ASG: ADMIN
+# ----------------------------
 resource "aws_autoscaling_group" "admin" {
   name                      = "${var.name_prefix}-admin-asg"
   max_size                  = 2
   min_size                  = 1
   desired_capacity          = 1
   health_check_type         = "ELB"
-  health_check_grace_period = 180
+  health_check_grace_period = 600
 
-  vpc_zone_identifier = data.aws_subnets.default.ids
+  vpc_zone_identifier = local.asg_subnet_ids
 
   launch_template {
     id      = aws_launch_template.admin.id
