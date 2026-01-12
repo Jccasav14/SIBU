@@ -1,6 +1,5 @@
 # One target group per microservice (instance targets).
-# IMPORTANT: Ensure each service responds 200 on /health (recommended).
-# If you don't have /health, change health_check.path to /docs or /.
+# IMPORTANT: Each service MUST respond 200 on GET /health
 
 resource "aws_lb_target_group" "tg_auth" {
   name        = "${var.name_prefix}-tg-auth"
@@ -15,7 +14,7 @@ resource "aws_lb_target_group" "tg_auth" {
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 3
-    path                = "/auth/docs"
+    path                = "/health"
     matcher             = "200-399"
   }
 }
@@ -33,7 +32,7 @@ resource "aws_lb_target_group" "tg_users" {
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 3
-    path                = "/users/docs"
+    path                = "/health"
     matcher             = "200-399"
   }
 }
@@ -51,7 +50,7 @@ resource "aws_lb_target_group" "tg_cases" {
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 3
-    path                = "/cases/docs"
+    path                = "/health"
     matcher             = "200-399"
   }
 }
@@ -69,7 +68,7 @@ resource "aws_lb_target_group" "tg_appointments" {
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 3
-    path                = "/appointments/docs"
+    path                = "/health"
     matcher             = "200-399"
   }
 }
@@ -87,7 +86,7 @@ resource "aws_lb_target_group" "tg_audit" {
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 3
-    path                = "/audit/docs"
+    path                = "/health"
     matcher             = "200-399"
   }
 }
@@ -105,7 +104,7 @@ resource "aws_lb_target_group" "tg_reports" {
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 3
-    path                = "/reports/docs"
+    path                = "/health"
     matcher             = "200-399"
   }
 }
@@ -123,15 +122,7 @@ resource "aws_lb_target_group" "tg_admin" {
     timeout             = 5
     healthy_threshold   = 2
     unhealthy_threshold = 3
-    path                = "/admin/docs"
+    path                = "/health"
     matcher             = "200-399"
   }
 }
-
-# Attach EC2 instances to their target groups
-
-
-
-
-
-
