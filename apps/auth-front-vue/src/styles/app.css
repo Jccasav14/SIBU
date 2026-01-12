@@ -1,0 +1,56 @@
+/* =====================================================
+   SIBU - Global UI (Layout + Tokens)
+   Mantiene proporciones consistentes en todas las vistas
+   ===================================================== */
+
+:root {
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --text: #0f172a;
+  --muted: #64748b;
+  --blue: #2563eb;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  overflow-x: hidden; /* evita desplazamiento horizontal en mobile (Capacitor) */
+}
+
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color: var(--text);
+  background: var(--bg);
+  overflow-x: hidden; /* seguridad extra */
+}
+
+#app {
+  overflow-x: hidden;
+}
+
+a { color: inherit; }
+
+/* Contenedor global: evita "marcos" gigantes y hace todo coherente */
+.app-shell {
+  min-height: calc(100vh - 64px); /* navbar ~64px */
+  padding: 20px 0;
+}
+
+.app-container {
+  width: 100%;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* Utilitarios suaves (para vistas que los usen) */
+.ui-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+
+.ui-muted { color: var(--muted); }

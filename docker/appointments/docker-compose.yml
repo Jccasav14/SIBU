@@ -1,0 +1,15 @@
+services:
+  appointments:
+    env_file:
+    - ../env/common.env
+    - ../env/appointments.env
+    ports:
+    - 8005:8005
+    networks:
+    - sibu-net
+    image: ${DOCKERHUB_USER:-jccasav}/sibu-appointments:${SIBU_TAG:-qa}
+    pull_policy: if_not_present
+networks:
+  sibu-net:
+    name: sibu-net
+    external: true

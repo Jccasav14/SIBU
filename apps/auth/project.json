@@ -1,0 +1,36 @@
+{
+  "name": "auth",
+  "projectType": "application",
+  "sourceRoot": "apps/auth/app",
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": ".",
+        "command": ".\\.venv\\Scripts\\python.exe -m uvicorn apps.auth.app.main:app --host 0.0.0.0 --port 8001 --reload"
+
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/auth",
+        "command": "pytest -q"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/auth",
+        "command": "python -m compileall app"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": ".",
+        "command": "docker build -f apps/auth/Dockerfile -t sibu-auth:local ."
+      }
+    }
+  }
+}

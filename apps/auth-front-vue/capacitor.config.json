@@ -1,0 +1,9 @@
+{
+  "appId": "com.sibu.app",
+  "appName": "SIBU",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "http"
+  }
+}

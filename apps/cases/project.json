@@ -1,0 +1,36 @@
+{
+  "name": "cases",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/cases",
+  "projectType": "application",
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m uvicorn apps.cases.app.main:app --host 0.0.0.0 --port 8003 --reload",
+        "cwd": "."
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pytest -q",
+        "cwd": "apps/cases"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python -m compileall app",
+        "cwd": "apps/cases"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "docker build -t sibu-cases -f apps/cases/Dockerfile .",
+        "cwd": "."
+      }
+    }
+  }
+}

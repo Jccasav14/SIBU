@@ -1,0 +1,15 @@
+services:
+  audit_log:
+    env_file:
+    - ../env/common.env
+    - ../env/audit_log.env
+    ports:
+    - 8006:8006
+    networks:
+    - sibu-net
+    image: ${DOCKERHUB_USER:-jccasav}/sibu-audit_log:${SIBU_TAG:-qa}
+    pull_policy: if_not_present
+networks:
+  sibu-net:
+    name: sibu-net
+    external: true

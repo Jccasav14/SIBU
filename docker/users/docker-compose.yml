@@ -1,0 +1,15 @@
+services:
+  users:
+    env_file:
+    - ../env/common.env
+    - ../env/users.env
+    ports:
+    - 8001:8000
+    networks:
+    - sibu-net
+    image: ${DOCKERHUB_USER:-jccasav}/sibu-users:${SIBU_TAG:-qa}
+    pull_policy: if_not_present
+networks:
+  sibu-net:
+    name: sibu-net
+    external: true
