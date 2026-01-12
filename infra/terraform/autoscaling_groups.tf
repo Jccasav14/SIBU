@@ -1,24 +1,15 @@
 # Auto Scaling Groups for each microservice
 # Fix: exclude subnets in us-east-1e because t3.micro is not supported there (AWS Academy common restriction)
 
-# ----------------------------
-# Subnets (default VPC)
-# ----------------------------
-data "aws_subnets" "default" {
-  filter {
-    name   = "vpc-id"
-    values = [data.aws_vpc.default.id]
-  }
-}
+# NOTE: data.aws_subnets.default and data.aws_vpc.default already exist in network.tf
+# We only need to read each subnet to know its AZ and filter.
 
-# Get AZ per subnet so we can filter out us-east-1e
-data "aws_subnet" "default" {
+data "aws_subnet" "all_default" {
   for_each = toset(data.aws_subnets.default.ids)
   id       = each.value
 }
 
 locals {
-  # Allowed AZs (explicitly exclude us-east-1e)
   allowed_azs = toset([
     "us-east-1a",
     "us-east-1b",
@@ -28,14 +19,11 @@ locals {
   ])
 
   asg_subnet_ids = [
-    for s in data.aws_subnet.default : s.id
+    for s in data.aws_subnet.all_default : s.id
     if contains(local.allowed_azs, s.availability_zone)
   ]
 }
 
-# ----------------------------
-# ASG: AUTH
-# ----------------------------
 resource "aws_autoscaling_group" "auth" {
   name                      = "${var.name_prefix}-auth-asg"
   max_size                  = 2
@@ -44,7 +32,6 @@ resource "aws_autoscaling_group" "auth" {
   health_check_type         = "ELB"
   health_check_grace_period = 600
 
-  # IMPORTANT: filtered subnets (no us-east-1e)
   vpc_zone_identifier = local.asg_subnet_ids
 
   launch_template {
@@ -54,34 +41,12 @@ resource "aws_autoscaling_group" "auth" {
 
   target_group_arns = [aws_lb_target_group.tg_auth.arn]
 
-  tag {
-    key                 = "Name"
-    value               = "${var.name_prefix}-auth"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "App"
-    value               = "sibu"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Env"
-    value               = "qa"
-    propagate_at_launch = true
-  }
-  
-  tag {
-    key                 = "Svc"
-    value               = "auth"
-    propagate_at_launch = true
-  }
+  tag { key = "Name" value = "${var.name_prefix}-auth" propagate_at_launch = true }
+  tag { key = "App"  value = "sibu"               propagate_at_launch = true }
+  tag { key = "Env"  value = "qa"                 propagate_at_launch = true }
+  tag { key = "Svc"  value = "auth"               propagate_at_launch = true }
 }
 
-# ----------------------------
-# ASG: USERS
-# ----------------------------
 resource "aws_autoscaling_group" "users" {
   name                      = "${var.name_prefix}-users-asg"
   max_size                  = 2
@@ -99,34 +64,12 @@ resource "aws_autoscaling_group" "users" {
 
   target_group_arns = [aws_lb_target_group.tg_users.arn]
 
-  tag {
-    key                 = "Name"
-    value               = "${var.name_prefix}-users"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "App"
-    value               = "sibu"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Env"
-    value               = "qa"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Svc"
-    value               = "users"
-    propagate_at_launch = true
-  }
+  tag { key = "Name" value = "${var.name_prefix}-users" propagate_at_launch = true }
+  tag { key = "App"  value = "sibu"                propagate_at_launch = true }
+  tag { key = "Env"  value = "qa"                  propagate_at_launch = true }
+  tag { key = "Svc"  value = "users"               propagate_at_launch = true }
 }
 
-# ----------------------------
-# ASG: CASES
-# ----------------------------
 resource "aws_autoscaling_group" "cases" {
   name                      = "${var.name_prefix}-cases-asg"
   max_size                  = 2
@@ -144,34 +87,12 @@ resource "aws_autoscaling_group" "cases" {
 
   target_group_arns = [aws_lb_target_group.tg_cases.arn]
 
-  tag {
-    key                 = "Name"
-    value               = "${var.name_prefix}-cases"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "App"
-    value               = "sibu"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Env"
-    value               = "qa"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Svc"
-    value               = "cases"
-    propagate_at_launch = true
-  }
+  tag { key = "Name" value = "${var.name_prefix}-cases" propagate_at_launch = true }
+  tag { key = "App"  value = "sibu"               propagate_at_launch = true }
+  tag { key = "Env"  value = "qa"                 propagate_at_launch = true }
+  tag { key = "Svc"  value = "cases"              propagate_at_launch = true }
 }
 
-# ----------------------------
-# ASG: APPOINTMENTS
-# ----------------------------
 resource "aws_autoscaling_group" "appointments" {
   name                      = "${var.name_prefix}-appointments-asg"
   max_size                  = 2
@@ -189,34 +110,12 @@ resource "aws_autoscaling_group" "appointments" {
 
   target_group_arns = [aws_lb_target_group.tg_appointments.arn]
 
-  tag {
-    key                 = "Name"
-    value               = "${var.name_prefix}-appointments"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "App"
-    value               = "sibu"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Env"
-    value               = "qa"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Svc"
-    value               = "appointments"
-    propagate_at_launch = true
-  }
+  tag { key = "Name" value = "${var.name_prefix}-appointments" propagate_at_launch = true }
+  tag { key = "App"  value = "sibu"                     propagate_at_launch = true }
+  tag { key = "Env"  value = "qa"                       propagate_at_launch = true }
+  tag { key = "Svc"  value = "appointments"             propagate_at_launch = true }
 }
 
-# ----------------------------
-# ASG: AUDIT
-# ----------------------------
 resource "aws_autoscaling_group" "audit" {
   name                      = "${var.name_prefix}-audit-asg"
   max_size                  = 2
@@ -234,34 +133,12 @@ resource "aws_autoscaling_group" "audit" {
 
   target_group_arns = [aws_lb_target_group.tg_audit.arn]
 
-  tag {
-    key                 = "Name"
-    value               = "${var.name_prefix}-audit"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "App"
-    value               = "sibu"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Env"
-    value               = "qa"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Svc"
-    value               = "audit"
-    propagate_at_launch = true
-  }
+  tag { key = "Name" value = "${var.name_prefix}-audit" propagate_at_launch = true }
+  tag { key = "App"  value = "sibu"               propagate_at_launch = true }
+  tag { key = "Env"  value = "qa"                 propagate_at_launch = true }
+  tag { key = "Svc"  value = "audit"              propagate_at_launch = true }
 }
 
-# ----------------------------
-# ASG: REPORTS
-# ----------------------------
 resource "aws_autoscaling_group" "reports" {
   name                      = "${var.name_prefix}-reports-asg"
   max_size                  = 2
@@ -279,34 +156,12 @@ resource "aws_autoscaling_group" "reports" {
 
   target_group_arns = [aws_lb_target_group.tg_reports.arn]
 
-  tag {
-    key                 = "Name"
-    value               = "${var.name_prefix}-reports"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "App"
-    value               = "sibu"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Env"
-    value               = "qa"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Svc"
-    value               = "reports"
-    propagate_at_launch = true
-  }
+  tag { key = "Name" value = "${var.name_prefix}-reports" propagate_at_launch = true }
+  tag { key = "App"  value = "sibu"                 propagate_at_launch = true }
+  tag { key = "Env"  value = "qa"                   propagate_at_launch = true }
+  tag { key = "Svc"  value = "reports"              propagate_at_launch = true }
 }
 
-# ----------------------------
-# ASG: ADMIN
-# ----------------------------
 resource "aws_autoscaling_group" "admin" {
   name                      = "${var.name_prefix}-admin-asg"
   max_size                  = 2
@@ -324,27 +179,8 @@ resource "aws_autoscaling_group" "admin" {
 
   target_group_arns = [aws_lb_target_group.tg_admin.arn]
 
-  tag {
-    key                 = "Name"
-    value               = "${var.name_prefix}-admin"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "App"
-    value               = "sibu"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Env"
-    value               = "qa"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Svc"
-    value               = "admin"
-    propagate_at_launch = true
-  }
+  tag { key = "Name" value = "${var.name_prefix}-admin" propagate_at_launch = true }
+  tag { key = "App"  value = "sibu"               propagate_at_launch = true }
+  tag { key = "Env"  value = "qa"                 propagate_at_launch = true }
+  tag { key = "Svc"  value = "admin"              propagate_at_launch = true }
 }
