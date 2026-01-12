@@ -12,7 +12,6 @@ venv/
 __pycache__/
 **/.terraform/
 .terraform.lock.hcl
-*.tfstate
 *.tfstate.backup
 terraform-provider-*
 *.exe

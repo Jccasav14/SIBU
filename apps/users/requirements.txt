@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+asyncpg
+pydantic
+pydantic[email]
+python-jose[cryptography]
+aiokafka
+pytest==8.3.3
+httpx
+prometheus-fastapi-instrumentator==6.1.0

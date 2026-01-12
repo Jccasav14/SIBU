@@ -1,0 +1,81 @@
+{
+  "$schema": "./node_modules/nx/schemas/nx-schema.json",
+  "installation": {
+    "version": "latest",
+    "packageManager": "npm"
+  },
+  "npmScope": "sibu",
+  "affected": {
+    "defaultBase": "main"
+  },
+  "projects": {
+    "auth": {
+      "root": "apps/auth",
+      "projectType": "application",
+      "targets": {
+        "serve": {
+          "executor": "nx:run-commands",
+          "options": {
+            "command": "python -m uvicorn apps.auth.app.main:app --host 0.0.0.0 --port 8001 --reload",
+            "cwd": "."
+          }
+        },
+        "test": {
+          "executor": "nx:run-commands",
+          "options": {
+            "command": "pytest",
+            "cwd": "apps/auth"
+          }
+        },
+        "lint": {
+          "executor": "nx:run-commands",
+          "options": {
+            "command": "python -m compileall app",
+            "cwd": "apps/auth"
+          }
+        },
+        "docker-build": {
+          "executor": "nx:run-commands",
+          "options": {
+            "command": "docker build -f apps/auth/Dockerfile -t sibu-auth:local .",
+            "cwd": "."
+          }
+        }
+      }
+    },
+    "users": {
+      "root": "apps/users",
+      "projectType": "application",
+      "targets": {
+        "serve": {
+          "executor": "nx:run-commands",
+          "options": {
+            "command": "python -m uvicorn apps.users.app.main:app --host 0.0.0.0 --port 8002 --reload",
+            "cwd": "."
+          }
+        },
+        "test": {
+          "executor": "nx:run-commands",
+          "options": {
+            "command": "pytest",
+            "cwd": "apps/users"
+          }
+        },
+        "lint": {
+          "executor": "nx:run-commands",
+          "options": {
+            "command": "python -m compileall app",
+            "cwd": "apps/users"
+          }
+        },
+        "docker-build": {
+          "executor": "nx:run-commands",
+          "options": {
+            "command": "docker build -f apps/users/Dockerfile -t sibu-users:local .",
+            "cwd": "."
+          }
+        }
+      }
+    }
+  }
+}

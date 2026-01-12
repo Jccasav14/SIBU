@@ -1,0 +1,17 @@
+services:
+  coverage:
+    image: jccasav/sibu-coverage:qa
+    ports:
+      - "8010:8010"
+    networks:
+      - sibu-net
+    env_file:
+      - ../env/common.env
+      - ../env/coverage.env
+      - .env
+    restart: unless-stopped
+
+networks:
+  sibu-net:
+    external: true
+    name: sibu-net

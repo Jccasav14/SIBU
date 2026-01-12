@@ -1,0 +1,37 @@
+{
+  "name": "users",
+  "projectType": "application",
+  "sourceRoot": "apps/users/app",
+  "targets": {
+    "serve": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": ".",
+        "command": ".\\.venv\\Scripts\\python.exe -m uvicorn apps.users.app.main:app --host 0.0.0.0 --port 8002 --reload"
+
+
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/users",
+        "command": "pytest -q"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/users",
+        "command": "python -m compileall app"
+      }
+    },
+    "docker-build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": ".",
+        "command": "docker build -f apps/users/Dockerfile -t sibu-users:local ."
+      }
+    }
+  }
+}

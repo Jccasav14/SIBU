@@ -1,0 +1,209 @@
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: sibu
+      POSTGRES_PASSWORD: sibu
+      POSTGRES_DB: sibu
+    ports:
+    - 5433:5432
+    volumes:
+    - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U sibu -d sibu
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+    - sibu-net
+  reports_postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: reports
+      POSTGRES_PASSWORD: reports
+      POSTGRES_DB: reports
+    ports:
+    - 5434:5432
+    volumes:
+    - reports_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U reports -d reports
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+    - sibu-net
+  admin_postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: admin
+    ports:
+    - 5435:5432
+    volumes:
+    - admin_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U admin -d admin
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+    - sibu-net
+  claims_postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: claims
+      POSTGRES_PASSWORD: claims
+      POSTGRES_DB: claims
+    ports:
+    - 5436:5432
+    volumes:
+    - claims_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U claims -d claims
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+    - sibu-net
+  coverage_postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: coverage
+      POSTGRES_PASSWORD: coverage
+      POSTGRES_DB: coverage
+    ports:
+    - 5437:5432
+    volumes:
+    - coverage_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U coverage -d coverage
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+    - sibu-net
+  redis:
+    image: redis:7
+    ports:
+    - 6379:6379
+    networks:
+    - sibu-net
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+    - sibu-net
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    depends_on:
+      zookeeper:
+        condition: service_started
+    ports:
+      - "29092:29092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,PLAINTEXT_HOST://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+
+    networks:
+    - sibu-net
+    volumes:
+    - kafka_data:/var/lib/kafka/data
+  mongo:
+    image: mongo:7
+    ports:
+    - 27017:27017
+    environment:
+      MONGO_INITDB_DATABASE: audit
+    volumes:
+    - mongodata:/data/db
+    networks:
+    - sibu-net
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+    - 5672:5672
+    - 15672:15672
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+    - sibu-net
+  mqtt:
+    image: eclipse-mosquitto:2
+    ports:
+    - 1883:1883
+    volumes:
+    - mosquitto_data:/mosquitto/data
+    - mosquitto_log:/mosquitto/log
+    networks:
+    - sibu-net
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+    - 9090:9090
+    volumes:
+    - ../observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    - prom_data:/prometheus
+    restart: unless-stopped
+    networks:
+    - sibu-net
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+    - 3001:3000
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+    - grafana_data:/var/lib/grafana
+    depends_on:
+    - prometheus
+    restart: unless-stopped
+    networks:
+    - sibu-net
+  loki:
+    image: grafana/loki:2.9.8
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+    - 3100:3100
+    restart: unless-stopped
+    networks:
+    - sibu-net
+volumes:
+  pgdata: null
+  reports_pgdata: null
+  admin_pgdata: null
+  claims_pgdata: null
+  coverage_pgdata: null
+  mongodata: null
+  mosquitto_data: null
+  mosquitto_log: null
+  prom_data: null
+  grafana_data: null
+  kafka_data: {}
+networks:
+  sibu-net:
+    name: sibu-net
