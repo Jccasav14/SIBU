@@ -12,6 +12,7 @@ resource "aws_instance" "admin" {
   })
 
 
+
   depends_on = [aws_instance.data]
 
   root_block_device {

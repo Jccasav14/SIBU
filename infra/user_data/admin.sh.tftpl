@@ -1,11 +1,14 @@
 #!/bin/bash
 set -euxo pipefail
 
+# =============================
+# Base system
+# =============================
 dnf update -y
 dnf install -y docker git nmap-ncat
 
 # -----------------------------
-# Swap (prevents OOM lockups on small instances)
+# Swap (prevents OOM lockups)
 # -----------------------------
 if ! swapon --show | grep -q "^/swapfile"; then
   (fallocate -l 1G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=1024) >/dev/null 2>&1 || true
@@ -15,75 +18,92 @@ if ! swapon --show | grep -q "^/swapfile"; then
   grep -q "^/swapfile " /etc/fstab 2>/dev/null || echo "/swapfile swap swap defaults 0 0" >> /etc/fstab
 fi
 
+# -----------------------------
+# Docker
+# -----------------------------
 groupadd -f docker || true
 systemctl enable --now docker
 usermod -aG docker ec2-user || true
 chmod 666 /var/run/docker.sock || true
 sleep 5
 
+# -----------------------------
+# Network
+# -----------------------------
 docker network create sibu-net || true
 
-# --- DATA endpoints (DATA instance private IP) ---
+# =============================
+# Terraform-injected variables
+# =============================
 DATA_IP="${data_ip}"
-
-# --- Ports from Terraform ---
 HOST_PORT="${host_port}"
 CONTAINER_PORT="${container_port}"
 
-# --- Wait for Postgres / Kafka / Redis ---
-echo "Waiting for Postgres at $DATA_IP:5432 ..."
+# =============================
+# Wait for DATA services
+# =============================
+echo "Waiting for Postgres at ${DATA_IP}:5432 ..."
 for i in {1..90}; do
-  if nc -z "$DATA_IP" 5432 >/dev/null 2>&1; then
+  if nc -z "${DATA_IP}" 5432 >/dev/null 2>&1; then
     echo "Postgres reachable"
     break
   fi
-  echo "Postgres not ready yet ($i)..."
   sleep 2
 done
 
-echo "Waiting for Redis at $DATA_IP:6379 ..."
+echo "Waiting for Redis at ${DATA_IP}:6379 ..."
 for i in {1..90}; do
-  if nc -z "$DATA_IP" 6379 >/dev/null 2>&1; then
+  if nc -z "${DATA_IP}" 6379 >/dev/null 2>&1; then
     echo "Redis reachable"
     break
   fi
-  echo "Redis not ready yet ($i)..."
   sleep 2
 done
 
-echo "Waiting for Kafka at $DATA_IP:29092 ..."
+echo "Waiting for Kafka at ${DATA_IP}:29092 ..."
 for i in {1..90}; do
-  if nc -z "$DATA_IP" 29092 >/dev/null 2>&1; then
-    echo "Kafka port reachable"
+  if nc -z "${DATA_IP}" 29092 >/dev/null 2>&1; then
+    echo "Kafka reachable"
     break
   fi
-  echo "Kafka not ready yet ($i)..."
   sleep 2
 done
+
 sleep 5
 
-DATABASE_URL="postgresql+asyncpg://sibu:sibu@$DATA_IP:5432/sibu"
-DB_HOST="$DATA_IP"
+# =============================
+# App env vars
+# =============================
+DATABASE_URL="postgresql+asyncpg://sibu:sibu@${DATA_IP}:5432/sibu"
+DB_HOST="${DATA_IP}"
 DB_PORT="5432"
 DB_USER="sibu"
 DB_PASSWORD="sibu"
 DB_NAME="sibu"
 
+# =============================
+# Run Admin service
+# =============================
 docker pull jccasav/sibu-admin:qa
 docker rm -f sibu-admin || true
 
-docker run -d --name sibu-admin --restart always \
+docker run -d \
+  --name sibu-admin \
+  --restart always \
   -p ${HOST_PORT}:${CONTAINER_PORT} \
   --add-host postgres:${DATA_IP} \
   --add-host redis:${DATA_IP} \
-  -e DATABASE_URL="$DATABASE_URL" \
-  -e DB_HOST="$DB_HOST" \
-  -e DB_PORT="$DB_PORT" \
-  -e DB_USER="$DB_USER" \
-  -e DB_PASSWORD="$DB_PASSWORD" \
-  -e DB_NAME="$DB_NAME" \
+  -e DATABASE_URL="${DATABASE_URL}" \
+  -e DB_HOST="${DB_HOST}" \
+  -e DB_PORT="${DB_PORT}" \
+  -e DB_USER="${DB_USER}" \
+  -e DB_PASSWORD="${DB_PASSWORD}" \
+  -e DB_NAME="${DB_NAME}" \
   jccasav/sibu-admin:qa
 
+# =============================
+# Local health check
+# =============================
 sleep 3
 curl -sS -i "http://127.0.0.1:${HOST_PORT}/health" || true
 curl -sS -i "http://127.0.0.1:${HOST_PORT}/docs" || true
