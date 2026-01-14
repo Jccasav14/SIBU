@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eux
+set -euxo pipefail
 
 dnf update -y
 dnf install -y docker git nmap-ncat
@@ -16,9 +16,7 @@ if ! swapon --show | grep -q "^/swapfile"; then
 fi
 
 groupadd -f docker || true
-systemctl enable docker
-systemctl start docker
-
+systemctl enable --now docker
 usermod -aG docker ec2-user || true
 chmod 666 /var/run/docker.sock || true
 
@@ -55,10 +53,13 @@ for i in {1..90}; do
 done
 
 # -----------------------------
-# Create REPORTS role + DB (idempotent)
-# NOTE: CREATE DATABASE cannot run inside DO $$ $$.
+# DB provisioning (idempotent)
+# - reports role/db (ya lo tenías)
+# - postgres role (admin lo necesita)
+# - sibu_admin database (admin lo necesita)
 # -----------------------------
-# Ensure role exists + password
+
+# Ensure REPORTS role exists + password
 docker exec sibu-postgres psql -U sibu -d postgres -v ON_ERROR_STOP=1 -c \
 "DO \$\$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='reports') THEN
@@ -68,18 +69,53 @@ docker exec sibu-postgres psql -U sibu -d postgres -v ON_ERROR_STOP=1 -c \
   END IF;
 END \$\$;"
 
-# Create database if missing
+# Create reports database if missing (NO DO $$)
 if ! docker exec sibu-postgres psql -U sibu -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='reports'" | grep -q 1; then
   docker exec sibu-postgres createdb -U sibu -O reports reports
 fi
 
 # Permissions for reports user
-docker exec sibu-postgres psql -U sibu -d postgres -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE reports TO reports;"
-docker exec sibu-postgres psql -U sibu -d reports  -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO reports;"
-docker exec sibu-postgres psql -U sibu -d reports  -v ON_ERROR_STOP=1 -c "GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO reports;"
-docker exec sibu-postgres psql -U sibu -d reports  -v ON_ERROR_STOP=1 -c "GRANT USAGE,SELECT,UPDATE ON ALL SEQUENCES IN SCHEMA public TO reports;"
-docker exec sibu-postgres psql -U sibu -d reports  -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO reports;"
-docker exec sibu-postgres psql -U sibu -d reports  -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE,SELECT,UPDATE ON SEQUENCES TO reports;"
+docker exec sibu-postgres psql -U sibu -d postgres -v ON_ERROR_STOP=1 -c "GRANT CONNECT ON DATABASE reports TO reports;" || true
+docker exec sibu-postgres psql -U sibu -d reports  -v ON_ERROR_STOP=1 -c "GRANT USAGE ON SCHEMA public TO reports;" || true
+docker exec sibu-postgres psql -U sibu -d reports  -v ON_ERROR_STOP=1 -c "GRANT SELECT,INSERT,UPDATE,DELETE ON ALL TABLES IN SCHEMA public TO reports;" || true
+docker exec sibu-postgres psql -U sibu -d reports  -v ON_ERROR_STOP=1 -c "GRANT USAGE,SELECT,UPDATE ON ALL SEQUENCES IN SCHEMA public TO reports;" || true
+docker exec sibu-postgres psql -U sibu -d reports  -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT,INSERT,UPDATE,DELETE ON TABLES TO reports;" || true
+docker exec sibu-postgres psql -U sibu -d reports  -v ON_ERROR_STOP=1 -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE,SELECT,UPDATE ON SEQUENCES TO reports;" || true
+
+# Ensure role 'postgres' exists (admin intenta user=postgres)
+docker exec sibu-postgres psql -U sibu -d postgres -v ON_ERROR_STOP=1 -c \
+"DO \$\$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='postgres') THEN
+    CREATE ROLE postgres WITH LOGIN SUPERUSER PASSWORD 'postgres';
+  ELSE
+    ALTER ROLE postgres WITH LOGIN SUPERUSER PASSWORD 'postgres';
+  END IF;
+END \$\$;"
+
+# Ensure database 'sibu_admin' exists (admin intenta DB=sibu_admin) - NO DO $$
+if ! docker exec sibu-postgres psql -U sibu -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='sibu_admin'" | grep -q 1; then
+  docker exec sibu-postgres createdb -U sibu -O sibu sibu_admin
+fi
+
+# -----------------------------
+# Redis (admin lo necesita como host "redis:6379")
+# -----------------------------
+docker pull redis:7-alpine
+docker rm -f redis || true
+docker run -d --name redis --restart always \
+  --network sibu-net \
+  -p 6379:6379 \
+  redis:7-alpine
+
+# Wait Redis
+for i in {1..60}; do
+  if nc -z 127.0.0.1 6379 >/dev/null 2>&1; then
+    echo "Redis ready"
+    break
+  fi
+  echo "Redis not ready yet ($i)..."
+  sleep 2
+done
 
 # -----------------------------
 # RabbitMQ (management)
@@ -95,7 +131,6 @@ docker run -d --name rabbitmq --restart always \
   -v rabbitmq_data:/var/lib/rabbitmq \
   rabbitmq:3.13-management
 
-# Wait RabbitMQ ports
 for i in {1..90}; do
   if nc -z 127.0.0.1 5672 >/dev/null 2>&1 && nc -z 127.0.0.1 15672 >/dev/null 2>&1; then
     echo "RabbitMQ ready"
@@ -170,7 +205,7 @@ for i in {1..120}; do
 done
 
 # -----------------------------
-# Topics
+# Topics (idempotent)
 # -----------------------------
 docker exec kafka kafka-topics --bootstrap-server 127.0.0.1:29092 \
   --create --if-not-exists --topic sibu.user.events --partitions 1 --replication-factor 1 || true

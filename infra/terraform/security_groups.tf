@@ -19,6 +19,15 @@ resource "aws_security_group" "sibu_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Redis (only inside VPC)
+  ingress {
+    from_port   = 6379
+    to_port     = 6379
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
+  }
+
+
   # RabbitMQ Management UI (web)
   ingress {
     from_port   = 15672

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -eux
+set -euxo pipefail
 
 dnf update -y
 dnf install -y docker git nmap-ncat
@@ -16,8 +16,7 @@ if ! swapon --show | grep -q "^/swapfile"; then
 fi
 
 groupadd -f docker || true
-systemctl enable docker
-systemctl start docker
+systemctl enable --now docker
 usermod -aG docker ec2-user || true
 chmod 666 /var/run/docker.sock || true
 sleep 5
@@ -27,14 +26,11 @@ docker network create sibu-net || true
 # --- DATA endpoints (DATA instance private IP) ---
 DATA_IP="${data_ip}"
 
-DATABASE_URL="postgresql+asyncpg://sibu:sibu@$DATA_IP:5432/sibu"
-DB_HOST="$DATA_IP"
-DB_PORT="5432"
-DB_USER="sibu"
-DB_PASSWORD="sibu"
-DB_NAME="sibu"
+# Service ports (observado por docker inspect)
+HOST_PORT="8006"
+CONTAINER_PORT="8008"
 
-# --- Wait for Postgres ---
+# --- Wait for Postgres / Kafka / Redis ---
 echo "Waiting for Postgres at $DATA_IP:5432 ..."
 for i in {1..90}; do
   if nc -z "$DATA_IP" 5432 >/dev/null 2>&1; then
@@ -45,7 +41,16 @@ for i in {1..90}; do
   sleep 2
 done
 
-# --- Wait for Kafka metadata ---
+echo "Waiting for Redis at $DATA_IP:6379 ..."
+for i in {1..90}; do
+  if nc -z "$DATA_IP" 6379 >/dev/null 2>&1; then
+    echo "Redis reachable"
+    break
+  fi
+  echo "Redis not ready yet ($i)..."
+  sleep 2
+done
+
 echo "Waiting for Kafka at $DATA_IP:29092 ..."
 for i in {1..90}; do
   if nc -z "$DATA_IP" 29092 >/dev/null 2>&1; then
@@ -55,18 +60,23 @@ for i in {1..90}; do
   echo "Kafka not ready yet ($i)..."
   sleep 2
 done
-sleep 10
+sleep 5
+
+# envs (aunque admin parece usar defaults internos, las dejamos)
+DATABASE_URL="postgresql+asyncpg://sibu:sibu@$DATA_IP:5432/sibu"
+DB_HOST="$DATA_IP"
+DB_PORT="5432"
+DB_USER="sibu"
+DB_PASSWORD="sibu"
+DB_NAME="sibu"
 
 docker pull jccasav/sibu-admin:qa
 docker rm -f sibu-admin || true
 
 docker run -d --name sibu-admin --restart always \
-  -p 8006:8000 \
-  --network sibu-net \
-  --add-host postgres:$DATA_IP \
-  --add-host db:$DATA_IP \
-  --add-host sibu-postgres:$DATA_IP \
-  --add-host kafka:$DATA_IP \
+  -p ${HOST_PORT}:${CONTAINER_PORT} \
+  --add-host postgres:${DATA_IP} \
+  --add-host redis:${DATA_IP} \
   -e DATABASE_URL="$DATABASE_URL" \
   -e DB_HOST="$DB_HOST" \
   -e DB_PORT="$DB_PORT" \
@@ -77,4 +87,5 @@ docker run -d --name sibu-admin --restart always \
 
 # Quick local check
 sleep 3
-curl -sS http://127.0.0.1:8006/health || true
+curl -sS -i "http://127.0.0.1:${HOST_PORT}/health" || true
+curl -sS -i "http://127.0.0.1:${HOST_PORT}/docs" || true
