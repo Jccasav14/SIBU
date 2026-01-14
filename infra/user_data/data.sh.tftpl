@@ -56,6 +56,27 @@ for i in {1..90}; do
 done
 
 # -----------------------------
+# Create REPORTS role + DB (idempotent)
+# -----------------------------
+docker exec sibu-postgres psql -U sibu -d postgres -v ON_ERROR_STOP=1 <<'SQL'
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='reports') THEN
+    CREATE ROLE reports WITH LOGIN PASSWORD 'reports';
+  ELSE
+    ALTER ROLE reports WITH LOGIN PASSWORD 'reports';
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname='reports') THEN
+    CREATE DATABASE reports OWNER reports;
+  END IF;
+END $$;
+SQL
+
+# -----------------------------
 # Zookeeper
 # -----------------------------
 docker pull confluentinc/cp-zookeeper:7.6.1
@@ -123,7 +144,7 @@ for i in {1..120}; do
 done
 
 # -----------------------------
-# CREATE REQUIRED TOPICS (FINAL FIX)
+# CREATE REQUIRED TOPICS
 # -----------------------------
 docker exec kafka kafka-topics --bootstrap-server 127.0.0.1:29092 \
   --create --if-not-exists --topic sibu.user.events --partitions 1 --replication-factor 1 || true
