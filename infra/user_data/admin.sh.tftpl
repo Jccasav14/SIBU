@@ -26,9 +26,9 @@ docker network create sibu-net || true
 # --- DATA endpoints (DATA instance private IP) ---
 DATA_IP="${data_ip}"
 
-# Service ports (observado por docker inspect)
-HOST_PORT="8006"
-CONTAINER_PORT="8008"
+# --- Ports from Terraform ---
+HOST_PORT="${host_port}"
+CONTAINER_PORT="${container_port}"
 
 # --- Wait for Postgres / Kafka / Redis ---
 echo "Waiting for Postgres at $DATA_IP:5432 ..."
@@ -62,7 +62,6 @@ for i in {1..90}; do
 done
 sleep 5
 
-# envs (aunque admin parece usar defaults internos, las dejamos)
 DATABASE_URL="postgresql+asyncpg://sibu:sibu@$DATA_IP:5432/sibu"
 DB_HOST="$DATA_IP"
 DB_PORT="5432"
@@ -85,7 +84,6 @@ docker run -d --name sibu-admin --restart always \
   -e DB_NAME="$DB_NAME" \
   jccasav/sibu-admin:qa
 
-# Quick local check
 sleep 3
 curl -sS -i "http://127.0.0.1:${HOST_PORT}/health" || true
 curl -sS -i "http://127.0.0.1:${HOST_PORT}/docs" || true

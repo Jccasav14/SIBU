@@ -6,14 +6,17 @@ resource "aws_instance" "admin" {
   subnet_id              = data.aws_subnets.default.ids[0]
 
   user_data = templatefile("${path.module}/../user_data/admin.sh.tftpl", {
-    data_ip = aws_instance.data.private_ip
+    data_ip        = aws_instance.data.private_ip
+    host_port      = 8006
+    container_port = 8008
   })
+
 
   depends_on = [aws_instance.data]
 
   root_block_device {
     volume_type = "gp3"
-    volume_size =30
+    volume_size =0
   }
 
   tags = {
