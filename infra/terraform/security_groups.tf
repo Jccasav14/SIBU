@@ -11,6 +11,23 @@ resource "aws_security_group" "sibu_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # RabbitMQ AMQP (only inside VPC)
+  ingress {
+    from_port   = 5672
+    to_port     = 5672
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.default.cidr_block]
+  }
+
+  # RabbitMQ Management UI (optional - restrict to your IP)
+  ingress {
+    from_port   = 15672
+    to_port     = 15672
+    protocol    = "tcp"
+    cidr_blocks = ["TU_IP/32"]
+  }
+
+
   # HTTP APIs (Auth 8000, Users 8001, Cases 8002, Appointments 8003, Audit 8004, Reports 8005, Admin 8006)
   ingress {
     from_port   = 8000

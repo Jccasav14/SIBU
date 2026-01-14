@@ -5,7 +5,7 @@ dnf update -y
 dnf install -y docker git nmap-ncat
 
 # -----------------------------
-# Swap (prevents OOM lockups on small instances)
+# Swap
 # -----------------------------
 if ! swapon --show | grep -q "^/swapfile"; then
   (fallocate -l 1G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=1024) >/dev/null 2>&1 || true
@@ -24,11 +24,10 @@ sleep 5
 
 docker network create sibu-net || true
 
-# --- DATA endpoints (DATA instance private IP) ---
 DATA_IP="${data_ip}"
 
-# --- Wait for Postgres ---
-echo "Waiting for Postgres at $DATA_IP:5432 ..."
+# Wait dependencies
+echo "Waiting for Postgres (reports DB) at $DATA_IP:5432 ..."
 for i in {1..90}; do
   if nc -z "$DATA_IP" 5432 >/dev/null 2>&1; then
     echo "Postgres reachable"
@@ -38,28 +37,43 @@ for i in {1..90}; do
   sleep 2
 done
 
-# --- Wait for Kafka ---
 echo "Waiting for Kafka at $DATA_IP:29092 ..."
 for i in {1..90}; do
   if nc -z "$DATA_IP" 29092 >/dev/null 2>&1; then
-    echo "Kafka port reachable"
+    echo "Kafka reachable"
     break
   fi
   echo "Kafka not ready yet ($i)..."
   sleep 2
 done
-sleep 10
+
+echo "Waiting for RabbitMQ at $DATA_IP:5672 ..."
+for i in {1..90}; do
+  if nc -z "$DATA_IP" 5672 >/dev/null 2>&1; then
+    echo "RabbitMQ reachable"
+    break
+  fi
+  echo "RabbitMQ not ready yet ($i)..."
+  sleep 2
+done
 
 docker pull jccasav/sibu-reports:qa
 docker rm -f sibu-reports || true
 
+# IMPORTANT:
+# - container listens on 8007 (your image)
+# - expose externally on 8005
+# - image expects:
+#   - Postgres at hostname reports_postgres (db=reports, user=reports, pass=reports)
+#   - Kafka at hostname kafka
+#   - RabbitMQ at hostname rabbitmq
 docker run -d --name sibu-reports --restart always \
   -p 8005:8007 \
   --network sibu-net \
   --add-host reports_postgres:$DATA_IP \
   --add-host kafka:$DATA_IP \
+  --add-host rabbitmq:$DATA_IP \
   jccasav/sibu-reports:qa
 
-# Quick local check
 sleep 3
-curl -sS -I http://127.0.0.1:8005/docs || true
+curl -sS http://127.0.0.1:8005/health || true
