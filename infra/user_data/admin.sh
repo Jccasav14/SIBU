@@ -1,6 +1,6 @@
 #!/bin/bash
 set -eux
-
+#lol
 dnf update -y
 dnf install -y docker git nmap-ncat
 
