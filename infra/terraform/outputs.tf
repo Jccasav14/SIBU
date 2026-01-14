@@ -6,19 +6,14 @@ output "data_public_ip" {
   value = aws_instance.data.public_ip
 }
 
-
-output "asg_names" {
+output "service_public_ips" {
   value = {
-    auth         = aws_autoscaling_group.auth.name
-    users        = aws_autoscaling_group.users.name
-    cases        = aws_autoscaling_group.cases.name
-    appointments = aws_autoscaling_group.appointments.name
-    audit        = aws_autoscaling_group.audit.name
-    reports      = aws_autoscaling_group.reports.name
-    admin        = aws_autoscaling_group.admin.name
+    auth         = aws_instance.auth.public_ip
+    users        = aws_instance.users.public_ip
+    cases        = aws_instance.cases.public_ip
+    appointments = aws_instance.appointments.public_ip
+    audit        = aws_instance.audit.public_ip
+    reports      = aws_instance.reports.public_ip
+    admin        = aws_instance.admin.public_ip
   }
-}
-
-output "alb_dns_name" {
-  value = aws_lb.sibu_alb.dns_name
 }
