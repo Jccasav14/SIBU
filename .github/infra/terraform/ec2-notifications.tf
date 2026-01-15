@@ -5,17 +5,12 @@ resource "aws_instance" "notifications" {
   vpc_security_group_ids = [aws_security_group.sibu_sg.id]
   subnet_id              = data.aws_subnets.default.ids[0]
 
-  user_data = <<EOF
-#!/bin/bash
-set -euxo pipefail
-echo "BOOT OK $(date -Is)" | tee /var/log/user-data-noop.log
-# No-op: instance created intentionally empty. Service will be added later via Terraform user_data update.
-EOF
+  # Runs 3 services on a single instance (notifications + claims + coverage)
+  user_data = templatefile("${path.module}/../user_data/insurance.sh.tftpl", {
+    data_ip = aws_instance.data.private_ip
+  })
 
-  instance_initiated_shutdown_behavior = "stop"
-  disable_api_termination              = true
-
-  depends_on = [aws_instance.admin]
+  depends_on = [aws_instance.data]
 
   root_block_device {
     volume_type = "gp3"
@@ -23,6 +18,6 @@ EOF
   }
 
   tags = {
-    Name = "${var.name_prefix}-notifications"
+    Name = "${var.name_prefix}-insurance"
   }
 }
