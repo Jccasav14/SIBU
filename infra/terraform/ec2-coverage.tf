@@ -6,9 +6,9 @@ resource "aws_instance" "coverage" {
   subnet_id              = data.aws_subnets.default.ids[0]
 
   user_data = templatefile("${path.module}/../user_data/coverage.sh.tftpl", {
-    data_ip         = aws_instance.data.private_ip
-    host_port       = 8010
-    container_port  = 8010
+    data_ip        = aws_instance.data.private_ip
+    host_port      = 8010
+    container_port = 8010
   })
 
   depends_on = [aws_instance.claims]

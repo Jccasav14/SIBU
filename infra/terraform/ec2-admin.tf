@@ -17,7 +17,7 @@ resource "aws_instance" "admin" {
 
   root_block_device {
     volume_type = "gp3"
-    volume_size = 30
+    volume_size =0
   }
 
   tags = {

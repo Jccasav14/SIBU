@@ -6,9 +6,9 @@ resource "aws_instance" "notifications" {
   subnet_id              = data.aws_subnets.default.ids[0]
 
   user_data = templatefile("${path.module}/../user_data/notifications.sh.tftpl", {
-    data_ip         = aws_instance.data.private_ip
-    host_port       = 8007
-    container_port  = 8004
+    data_ip        = aws_instance.data.private_ip
+    host_port      = 8007
+    container_port = 8004
   })
 
   depends_on = [aws_instance.admin]
