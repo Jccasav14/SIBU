@@ -11,6 +11,7 @@ resource "aws_instance" "notifications" {
     DATA_IP = aws_instance.data.private_ip
   })
 
+
   depends_on = [aws_instance.data]
 
   root_block_device {

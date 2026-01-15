@@ -30,13 +30,13 @@ DATA_IP="${data_ip}"
 
 # --- Wait for DATA ports (Postgres/Kafka/Rabbit/Redis) ---
 for port in 5432 29092 5672 6379; do
-  echo "Waiting for DATA ${DATA_IP}:${port} ..."
+  echo "Waiting for DATA ${DATA_IP}:$${port} ..."
   for i in {1..90}; do
     if nc -z "$DATA_IP" "$port" >/dev/null 2>&1; then
-      echo "DATA ${DATA_IP}:${port} reachable"
+      echo "DATA ${DATA_IP}:$${port} reachable"
       break
     fi
-    echo "Not ready yet (${i})..."
+    echo "Not ready yet ($${i})..."
     sleep 2
   done
 done
