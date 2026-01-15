@@ -5,11 +5,15 @@ resource "aws_instance" "claims" {
   vpc_security_group_ids = [aws_security_group.sibu_sg.id]
   subnet_id              = data.aws_subnets.default.ids[0]
 
-  user_data = templatefile("${path.module}/../user_data/claims.sh.tftpl", {
-    data_ip        = aws_instance.data.private_ip
-    host_port      = 8009
-    container_port = 8009
-  })
+  user_data = <<EOF
+#!/bin/bash
+set -euxo pipefail
+echo "BOOT OK $(date -Is)" | tee /var/log/user-data-noop.log
+# No-op: instance created intentionally empty. Service will be added later via Terraform user_data update.
+EOF
+
+  instance_initiated_shutdown_behavior = "stop"
+  disable_api_termination              = true
 
   depends_on = [aws_instance.notifications]
 
