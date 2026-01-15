@@ -8,6 +8,7 @@ resource "aws_instance" "notifications" {
   # Runs 3 services on a single instance (notifications + claims + coverage)
   user_data = templatefile("${path.module}/../user_data/insurance.sh.tftpl", {
     data_ip = aws_instance.data.private_ip
+    DATA_IP = aws_instance.data.private_ip
   })
 
   depends_on = [aws_instance.data]
