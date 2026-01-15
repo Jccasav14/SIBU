@@ -25,6 +25,7 @@ sleep 5
 docker network create sibu-net || true
 
 # --- DATA endpoints (DATA instance private IP) ---
+# NOTE: templatefile var is "data_ip" (lowercase)
 DATA_IP="${data_ip}"
 
 # --- Wait for DATA ports (Postgres/Kafka/Rabbit/Redis) ---
@@ -51,8 +52,8 @@ JWT_ALGORITHM="HS256"
 
 # =========================================================
 # NOTIFICATIONS
-# - Container listens on 8004, but you requested ONLY external 8007
-# - Mapping: host 8007 -> container 8004
+# Container listens on 8004, but required external ONLY 8007
+# Mapping: host 8007 -> container 8004
 # =========================================================
 docker pull jccasav/sibu-notifications:qa
 docker rm -f sibu-notifications || true
@@ -76,8 +77,8 @@ docker run -d --name sibu-notifications --restart always \
 
 # =========================================================
 # CLAIMS
-# - Listens on 8009
-# - MUST set CLAIMS_POSTGRES_DSN (root-cause we found)
+# Listens on 8009
+# MUST set CLAIMS_POSTGRES_DSN
 # =========================================================
 docker pull jccasav/sibu-claims:qa
 docker rm -f sibu-claims || true
@@ -103,9 +104,9 @@ docker run -d --name sibu-claims --restart always \
 
 # =========================================================
 # COVERAGE
-# - Uvicorn runs on 8010 (root-cause we found)
-# - Expose host 8010 -> container 8010
-# - MUST set COVERAGE_POSTGRES_DSN (root-cause we found)
+# Uvicorn runs on 8010
+# Expose host 8010 -> container 8010
+# MUST set COVERAGE_POSTGRES_DSN
 # =========================================================
 docker pull jccasav/sibu-coverage:qa
 docker rm -f sibu-coverage || true
