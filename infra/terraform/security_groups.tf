@@ -37,10 +37,10 @@ resource "aws_security_group" "sibu_sg" {
   }
 
 
-  # HTTP APIs (Auth 8000, Users 8001, Cases 8002, Appointments 8003, Audit 8004, Reports 8005, Admin 8006)
+  # HTTP APIs (Auth 8000, Users 8001, Cases 8002, Appointments 8003, Audit 8004, Reports 8005, Admin 8006, Notifications 8007, Claims 8009, Coverage 8010)
   ingress {
     from_port   = 8000
-    to_port     = 8006
+    to_port     = 8010
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }

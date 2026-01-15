@@ -15,5 +15,8 @@ output "service_public_ips" {
     audit        = aws_instance.audit.public_ip
     reports      = aws_instance.reports.public_ip
     admin        = aws_instance.admin.public_ip
+    notifications = aws_instance.notifications.public_ip
+    claims        = aws_instance.claims.public_ip
+    coverage      = aws_instance.coverage.public_ip
   }
 }
