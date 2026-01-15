@@ -5,6 +5,9 @@ resource "aws_instance" "claims" {
   vpc_security_group_ids = [aws_security_group.sibu_sg.id]
   subnet_id              = data.aws_subnets.default.ids[0]
 
+  disable_api_termination              = true
+  instance_initiated_shutdown_behavior = "stop"
+
   user_data = templatefile("${path.module}/../user_data/claims.sh.tftpl", {
     data_ip         = aws_instance.data.private_ip
     host_port       = 8009
