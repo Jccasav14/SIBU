@@ -8,13 +8,13 @@ output "data_public_ip" {
 
 output "service_public_ips" {
   value = {
-    auth         = aws_instance.auth.public_ip
-    users        = aws_instance.users.public_ip
+    authUsers    = aws_instance.authUsers.public_ip
     cases        = aws_instance.cases.public_ip
     appointments = aws_instance.appointments.public_ip
     audit        = aws_instance.audit.public_ip
     reports      = aws_instance.reports.public_ip
     notifications = aws_instance.notifications.public_ip
     admin        = aws_instance.admin.public_ip
+    bastion      = aws_instance.bastion.public_ip
   }
 }
