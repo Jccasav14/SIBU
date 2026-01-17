@@ -52,6 +52,7 @@ jobs:
             pip install -r $req
           done
 
+      # 🔴 ESTE BLOQUE ES EL QUE SE CORRIGE
       - name: Detect base/head for nx affected
         id: nx-vars
         run: |
@@ -59,8 +60,8 @@ jobs:
             echo "base=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
             echo "head=${{ github.event.pull_request.head.sha }}" >> $GITHUB_OUTPUT
           else
-            echo "base=origin/qa" >> $GITHUB_OUTPUT
-            echo "head=HEAD" >> $GITHUB_OUTPUT
+            echo "base=${{ github.event.before }}" >> $GITHUB_OUTPUT
+            echo "head=${{ github.sha }}" >> $GITHUB_OUTPUT
           fi
 
       - name: Run tests (affected only)
@@ -79,10 +80,9 @@ jobs:
       - name: Docker build & push (affected only)
         if: github.event_name == 'push'
         env:
-          IMAGE_TAG: qa
-          IMAGE_TAG_SHA: qa-${{ github.sha }}
+          DOCKER_TAG_1: qa
+          DOCKER_TAG_2: qa-${{ github.sha }}
         run: |
-          export IMAGE_TAG IMAGE_TAG_SHA
           npx nx affected -t docker-push \
             --base=${{ steps.nx-vars.outputs.base }} \
             --head=${{ steps.nx-vars.outputs.head }}
