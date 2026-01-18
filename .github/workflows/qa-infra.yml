@@ -6,9 +6,9 @@ on:
     paths:
       - "infra/qa/**"
       - ".github/workflows/qa-infra.yml"
-    paths-ignore:
-      # Anti-loop: no dispares el workflow cuando solo cambie el state
-      - "infra/qa/terraform/state/**"
+      # Anti-loop: no dispares cuando solo cambie el state
+      - "!infra/qa/terraform/state/**"
+
 
 concurrency:
   group: qa-infra-${{ github.ref }}
