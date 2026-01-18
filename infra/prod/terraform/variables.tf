@@ -16,5 +16,5 @@ variable "data_instance_type" {
 
 variable "name_prefix" {
   type    = string
-  default = "sibu-qa"
+  default = "sibu-prod"
 }

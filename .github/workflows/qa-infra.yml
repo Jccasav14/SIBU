@@ -6,9 +6,8 @@ on:
     paths:
       - "infra/qa/**"
       - ".github/workflows/qa-infra.yml"
-      # Anti-loop: no dispares cuando solo cambie el state
-      - "!infra/qa/terraform/state/**"
-
+    paths-ignore:
+      - "infra/qa/terraform/state/**"
 
 concurrency:
   group: qa-infra-${{ github.ref }}
@@ -20,8 +19,9 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
-    # Extra anti-loop: si el push lo hizo el bot, no corras
     if: github.actor != 'github-actions[bot]'
 
     env:
@@ -34,7 +34,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure AWS credentials (AWS Academy)
+      - name: Configure AWS credentials (QA)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -88,12 +88,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          git add infra/qa/terraform/state/qa/terraform.tfstate || true
-          git add infra/qa/terraform/state/qa/terraform.tfstate.backup || true
-
+          git add infra/qa/terraform/state/qa/terraform.tfstate infra/qa/terraform/state/qa/terraform.tfstate.backup || true
           git diff --cached --quiet && echo "No state changes to commit" && exit 0
 
           git commit -m "chore(qa): update terraform state [skip ci]"
-
-          # Push de vuelta a la misma rama qa
           git push origin HEAD:qa

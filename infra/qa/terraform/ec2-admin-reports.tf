@@ -13,7 +13,7 @@ resource "aws_instance" "admin_reports" {
     reports_host_port    = 8005
     reports_container_port = 8007
   })
-
+#
   depends_on = [aws_instance.data]
 
   root_block_device {
