@@ -48,7 +48,7 @@ def create_app() -> FastAPI:
     @app.on_event("shutdown")
     async def _shutdown():
         await state.kafka_runner.stop()
-#s
+#ss
     return app
 
 app = create_app()

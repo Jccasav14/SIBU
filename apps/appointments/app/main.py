@@ -32,7 +32,7 @@ app.include_router(router)
 
 @app.on_event("startup")
 async def _startup():
-    # Create tables (simple dev approach)ss
+    # Create tables (simple dev approach)sss
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

@@ -95,7 +95,7 @@ origins = [
 from prometheus_fastapi_instrumentator import Instrumentator
 
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
-#s
+#ss
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,

@@ -19,7 +19,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create DB tables (lightweight, migration-less)ss
+    # Create DB tables (lightweight, migration-less)sss
     engine = get_engine()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

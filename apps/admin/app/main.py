@@ -16,7 +16,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # DB init (simple - no Alembic for now)
+    # DB init (simple - no Alembic for now)s
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     # Redis is mandatoryssss

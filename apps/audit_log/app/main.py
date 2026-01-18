@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="SIBU Audit Log", lifespan=lifespan)
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
-# CORSass
+# CORSassa
 origins = [o.strip() for o in settings.CORS_ORIGINS.split(",") if o.strip()]
 app.add_middleware(
     CORSMiddleware,
