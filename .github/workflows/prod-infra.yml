@@ -6,38 +6,33 @@ on:
     paths:
       - "infra/prod/**"
       - ".github/workflows/prod-infra.yml"
-    paths-ignore:
-      - "infra/prod/terraform/state/**"
+      # Evita loop: no dispares el workflow cuando solo cambie el state
+      - "!infra/prod/terraform/state/**"
 
 concurrency:
   group: prod-infra-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: write
-
 jobs:
   deploy:
-    # Doble seguro: solo main + anti-loop bot
-    if: github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    # Doble seguro: solo main y anti-loop bot
+    if: github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
 
     env:
       AWS_REGION: us-east-1
       TF_IN_AUTOMATION: "true"
 
-    defaults:
-      run:
-        shell: bash
-        working-directory: infra/prod/terraform
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (main)
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # PROD en otro lab: usa secrets separados
-      - name: Configure AWS credentials (PROD)
+      - name: Configure AWS credentials (PROD - otro lab)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
@@ -45,11 +40,13 @@ jobs:
           aws-session-token: ${{ secrets.AWS_SESSION_TOKEN_PROD }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - uses: hashicorp/setup-terraform@v3
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
           terraform_version: 1.6.6
 
       - name: Restore PROD state from repo
+        working-directory: infra/prod/terraform
         run: |
           mkdir -p state/prod
           if [ -f state/prod/terraform.tfstate ]; then
@@ -60,18 +57,23 @@ jobs:
           fi
 
       - name: Terraform Init
+        working-directory: infra/prod/terraform
         run: terraform init -reconfigure
 
       - name: Terraform Validate
+        working-directory: infra/prod/terraform
         run: terraform validate
 
       - name: Terraform Plan
+        working-directory: infra/prod/terraform
         run: terraform plan -out=tfplan
 
       - name: Terraform Apply
+        working-directory: infra/prod/terraform
         run: terraform apply -auto-approve tfplan
 
       - name: Save updated PROD state into repo
+        working-directory: infra/prod/terraform
         run: |
           mkdir -p state/prod
           cp terraform.tfstate state/prod/terraform.tfstate

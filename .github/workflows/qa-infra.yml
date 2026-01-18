@@ -6,15 +6,12 @@ on:
     paths:
       - "infra/qa/**"
       - ".github/workflows/qa-infra.yml"
-    paths-ignore:
-      - "infra/qa/terraform/state/**"
+      # Evita loop: no dispares el workflow cuando solo cambie el state
+      - "!infra/qa/terraform/state/**"
 
 concurrency:
   group: qa-infra-${{ github.ref }}
   cancel-in-progress: true
-
-permissions:
-  contents: write
 
 jobs:
   deploy:
@@ -86,7 +83,7 @@ jobs:
       - name: Commit state (if changed)
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add infra/qa/terraform/state/qa/terraform.tfstate infra/qa/terraform/state/qa/terraform.tfstate.backup || true
           git diff --cached --quiet && echo "No state changes to commit" && exit 0
