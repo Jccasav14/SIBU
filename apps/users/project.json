@@ -14,7 +14,7 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": ".",
-        "command": "npx cross-env PYTHONPATH=. python -m pytest -q --import-mode=importlib apps/users /tests"
+        "command": "npx cross-env PYTHONPATH=. python -m pytest -q --import-mode=importlib apps/users/tests"
       }
     },
     "lint": {

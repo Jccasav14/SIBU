@@ -19,7 +19,7 @@ async def lifespan(app: FastAPI):
     # DB init (simple - no Alembic for now)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    # Redis is mandatorysss
+    # Redis is mandatoryssss
     await cache.connect()
     try:
         yield
