@@ -17,7 +17,6 @@ env:
   NX_DAEMON: false
   PYTHON_VERSION: '3.11'
   NODE_VERSION: '20'
-  # Opción 2: ocultar warnings solo en CI
   PYTHONWARNINGS: "ignore::DeprecationWarning,ignore::PendingDeprecationWarning,ignore::pytest.PytestDeprecationWarning"
 
 jobs:
