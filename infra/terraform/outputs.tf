@@ -9,8 +9,9 @@ output "data_public_ip" {
 output "service_public_ips" {
   value = {
     authUsers    = aws_instance.authUsers.public_ip
-    cases        = aws_instance.cases.public_ip
-    appointments = aws_instance.appointments.public_ip
+    # cases + appointments now share the same EC2 instance
+    cases        = aws_instance.appointments_cases.public_ip
+    appointments = aws_instance.appointments_cases.public_ip
     audit        = aws_instance.audit.public_ip
     reports      = aws_instance.reports.public_ip
     notifications = aws_instance.notifications.public_ip
