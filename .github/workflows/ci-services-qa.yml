@@ -29,6 +29,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Fetch all remote refs (required for nx affected)
+        shell: bash
+        run: |
+          git fetch --no-tags --prune origin +refs/heads/*:refs/remotes/origin/*
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -59,9 +64,10 @@ jobs:
             echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
             echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
           else
-            # En push usamos before->sha (es lo correcto para cambios reales del push)
-            echo "base=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
-            echo "head=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+            # En pushes: NO usar github.event.before (puede romperse con force-push)
+            # Base estable contra qa
+            echo "base=origin/qa" >> "$GITHUB_OUTPUT"
+            echo "head=HEAD" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Run tests (affected only)

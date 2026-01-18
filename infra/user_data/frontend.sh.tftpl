@@ -1,10 +1,19 @@
 #!/bin/bash
 set -euxo pipefail
 
-dnf update -y
-dnf install -y docker git
+# ==============================================
+# SIBU QA Frontend + Reverse Proxy (Nginx)
+# - Runs the frontend container on localhost:8080
+# - Exposes :80 publicly
+# - Proxies /auth, /users, /cases, /appointments, etc. to private IPs
+# ==============================================
 
-# Optional swap to avoid OOM in small instances
+dnf update -y
+dnf install -y docker nginx
+
+# -----------------------------
+# Swap (prevents OOM lockups)
+# -----------------------------
 if ! swapon --show | grep -q "^/swapfile"; then
   (fallocate -l 1G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=1024) >/dev/null 2>&1 || true
   chmod 600 /swapfile || true
@@ -13,11 +22,78 @@ if ! swapon --show | grep -q "^/swapfile"; then
   grep -q "^/swapfile " /etc/fstab 2>/dev/null || echo "/swapfile swap swap defaults 0 0" >> /etc/fstab
 fi
 
+# -----------------------------
 # Docker
+# -----------------------------
 groupadd -f docker || true
 systemctl enable --now docker
 usermod -aG docker ec2-user || true
 chmod 666 /var/run/docker.sock || true
 
-echo "Frontend instance ready. Docker installed and running."
-echo "Next step: docker pull/run your frontend image from Docker Hub."
+# -----------------------------
+# Nginx reverse proxy
+# -----------------------------
+mkdir -p /etc/nginx/conf.d
+rm -f /etc/nginx/conf.d/default.conf || true
+
+cat >/etc/nginx/conf.d/sibu.conf <<'NGINX'
+server {
+  listen 80 default_server;
+  server_name _;
+
+  # ---- CORS (QA) ----
+  add_header Access-Control-Allow-Origin "*" always;
+  add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+  add_header Access-Control-Allow-Headers "Authorization, Content-Type, Accept, Origin, X-Requested-With" always;
+  add_header Access-Control-Expose-Headers "Authorization" always;
+  if ($request_method = OPTIONS) { return 204; }
+
+  # ---- API ROUTES ----
+  location /auth/          { proxy_pass http://${auth_users_ip}:8000/; }
+  location /users/         { proxy_pass http://${auth_users_ip}:8001/; }
+
+  location /cases/         { proxy_pass http://${cases_ip}:8002/; }
+  location /appointments/  { proxy_pass http://${appointments_ip}:8003/; }
+
+  location /audit/         { proxy_pass http://${audit_ip}:8004/; }
+
+  # Admin + Reports share the same EC2
+  location /reports/       { proxy_pass http://${admin_reports_ip}:8005/; }
+  location /admin/         { proxy_pass http://${admin_reports_ip}:8006/; }
+
+  # Insurance EC2 hosts notifications + claims + coverage
+  location /notifications/ { proxy_pass http://${insurance_ip}:8007/; }
+  location /claims/        { proxy_pass http://${insurance_ip}:8009/; }
+  location /coverage/      { proxy_pass http://${insurance_ip}:8010/; }
+
+  # ---- FRONTEND (container) ----
+  location / {
+    proxy_pass http://127.0.0.1:8080/;
+  }
+}
+NGINX
+
+systemctl enable --now nginx
+nginx -t
+systemctl restart nginx
+
+# -----------------------------
+# Run frontend container
+# -----------------------------
+
+FRONTEND_IMAGE="${frontend_image}"
+
+docker pull "$FRONTEND_IMAGE"
+docker rm -f sibu-front || true
+
+docker run -d \
+  --name sibu-front \
+  --restart unless-stopped \
+  -p 8080:80 \
+  "$FRONTEND_IMAGE"
+
+sleep 2
+curl -sS -I http://127.0.0.1/ || true
+curl -sS -I http://127.0.0.1/auth/ || true
+
+echo "Frontend + Nginx proxy ready on port 80."
