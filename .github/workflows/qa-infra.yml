@@ -97,4 +97,3 @@ jobs:
 
           # Push de vuelta a la misma rama qa
           git push origin HEAD:qa
-# trigger: 2026-01-18
