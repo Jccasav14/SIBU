@@ -35,7 +35,6 @@ class FakeProfileService:
         return base
 
     async def get_by_email(self, email: str):
-        # simula encontrado
         return {
             "email": email,
             "full_name": "Test User",
@@ -83,31 +82,55 @@ def app(monkeypatch) -> FastAPI:
     app = FastAPI()
     app.include_router(routes_mod.router)
 
-    # 1) mock DB dependency (no toca Postgres)
-    async def fake_get_db():
+    # -----------------------------
+    # 1) Override DB dependency
+    # -----------------------------
+    async def override_get_db():
         yield object()
 
-    monkeypatch.setattr(routes_mod, "get_db", fake_get_db)
+    # OJO: aquí asumimos que el router usa routes_mod.get_db como dependencia
+    app.dependency_overrides[routes_mod.get_db] = override_get_db
 
-    # 2) mock ProfileService
+    # -----------------------------
+    # 2) Mock ProfileService class
+    # -----------------------------
     monkeypatch.setattr(routes_mod, "ProfileService", FakeProfileService)
 
-    # 3) mock auth deps
-    def fake_require_role(*roles):
-        def _dep():
-            return None
-        return _dep
-
-    def fake_get_current_user():
+    # -----------------------------
+    # 3) Override auth deps (FastAPI-friendly)
+    # -----------------------------
+    # get_current_user suele ser una dependencia directa en Depends(...)
+    def override_get_current_user():
         return {"email": "me@test.com", "role": "admin"}
 
-    monkeypatch.setattr(routes_mod, "require_role", fake_require_role)
-    monkeypatch.setattr(routes_mod, "get_current_user", fake_get_current_user)
+    app.dependency_overrides[routes_mod.get_current_user] = override_get_current_user
 
-    # 4) mock httpx AsyncClient (no red)
+    # require_role es tricky porque normalmente se usa así: Depends(require_role("admin"))
+    # Entonces overrideamos la "factory" para que devuelva una dependencia que SIEMPRE pase.
+    original_require_role = routes_mod.require_role
+
+    def patched_require_role(*roles):
+        dep = original_require_role(*roles)
+
+        # Override específico para ESE callable dep
+        # (FastAPI guarda el callable que retorna la factory, así que overrideamos ese)
+        def allow_any_role():
+            return None
+
+        app.dependency_overrides[dep] = allow_any_role
+        return dep
+
+    monkeypatch.setattr(routes_mod, "require_role", patched_require_role)
+
+    # -----------------------------
+    # 4) Mock httpx AsyncClient (no red)
+    # -----------------------------
     monkeypatch.setattr(routes_mod.httpx, "AsyncClient", FakeAsyncClient)
 
-    return app
+    yield app
+
+    # cleanup
+    app.dependency_overrides = {}
 
 
 @pytest.fixture()
