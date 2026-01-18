@@ -5,7 +5,7 @@ dnf update -y
 dnf install -y docker git nmap-ncat
 
 # -----------------------------
-# Swap (prevents OOM lockups on small instances)s
+# Swap (prevents OOM lockups on small instances)
 # -----------------------------
 if ! swapon --show | grep -q "^/swapfile"; then
   (fallocate -l 1G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=1024) >/dev/null 2>&1 || true

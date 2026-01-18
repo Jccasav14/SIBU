@@ -17,5 +17,6 @@ output "service_public_ips" {
     notifications = aws_instance.notifications.public_ip
     admin        = aws_instance.admin.public_ip
     bastion      = aws_instance.bastion.public_ip
+    gateway     = aws_instance.gateway.public_ip
   }
 }
