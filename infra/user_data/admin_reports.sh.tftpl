@@ -30,11 +30,15 @@ docker network create sibu-net || true
 # Terraform vars -> Bash vars
 # =============================
 DATA_IP="${data_ip}"
-HOST_PORT="${host_port}"
-CONTAINER_PORT="${container_port}"
+
+ADMIN_HOST_PORT="${admin_host_port}"
+ADMIN_CONTAINER_PORT="${admin_container_port}"
+
+REPORTS_HOST_PORT="${reports_host_port}"
+REPORTS_CONTAINER_PORT="${reports_container_port}"
 
 # =============================
-# Wait for DATA services
+# Wait for shared DATA services
 # =============================
 echo "Waiting for Postgres at $DATA_IP:5432 ..."
 for i in {1..90}; do
@@ -54,10 +58,16 @@ for i in {1..90}; do
   sleep 2
 done
 
+echo "Waiting for RabbitMQ at $DATA_IP:5672 ..."
+for i in {1..90}; do
+  nc -z "$DATA_IP" 5672 && break
+  sleep 2
+done
+
 sleep 5
 
 # =============================
-# App env vars
+# Admin env vars
 # =============================
 DATABASE_URL="postgresql+asyncpg://sibu:sibu@$DATA_IP:5432/sibu"
 DB_HOST="$DATA_IP"
@@ -66,7 +76,7 @@ DB_USER="sibu"
 DB_PASSWORD="sibu"
 DB_NAME="sibu"
 
-# 🔐 JWT (CRÍTICO)
+# JWT (for QA)
 JWT_SECRET="SIBU_SUPER_SECRET_CAMBIAME"
 JWT_ALGORITHM="HS256"
 
@@ -79,7 +89,7 @@ docker rm -f sibu-admin || true
 docker run -d \
   --name sibu-admin \
   --restart always \
-  -p "$HOST_PORT:$CONTAINER_PORT" \
+  -p "$ADMIN_HOST_PORT:$ADMIN_CONTAINER_PORT" \
   --add-host "postgres:$DATA_IP" \
   --add-host "redis:$DATA_IP" \
   -e "DATABASE_URL=$DATABASE_URL" \
@@ -92,9 +102,22 @@ docker run -d \
   -e "JWT_ALGORITHM=$JWT_ALGORITHM" \
   jccasav/sibu-admin:qa
 
-# -----------------------------
-# Health checkssss
-# -----------------------------
+# =============================
+# Run Reports service
+# =============================
+docker pull jccasav/sibu-reports:qa
+docker rm -f sibu-reports || true
+
+docker run -d \
+  --name sibu-reports \
+  --restart always \
+  -p "$REPORTS_HOST_PORT:$REPORTS_CONTAINER_PORT" \
+  --network sibu-net \
+  --add-host reports_postgres:$DATA_IP \
+  --add-host kafka:$DATA_IP \
+  --add-host rabbitmq:$DATA_IP \
+  jccasav/sibu-reports:qa
+
 sleep 3
-curl -sS -i "http://127.0.0.1:$HOST_PORT/health" || true
-curl -sS -i "http://127.0.0.1:$HOST_PORT/docs" || true
+curl -sS -i "http://127.0.0.1:$ADMIN_HOST_PORT/health" || true
+curl -sS -i "http://127.0.0.1:$REPORTS_HOST_PORT/health" || true
