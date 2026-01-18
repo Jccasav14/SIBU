@@ -1,0 +1,79 @@
+#!/bin/bash
+set -eux
+
+dnf update -y
+dnf install -y docker git nmap-ncat
+
+# -----------------------------
+# Swap
+# -----------------------------
+if ! swapon --show | grep -q "^/swapfile"; then
+  (fallocate -l 1G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=1024) >/dev/null 2>&1 || true
+  chmod 600 /swapfile || true
+  mkswap /swapfile >/dev/null 2>&1 || true
+  swapon /swapfile || true
+  grep -q "^/swapfile " /etc/fstab 2>/dev/null || echo "/swapfile swap swap defaults 0 0" >> /etc/fstab
+fi
+
+groupadd -f docker || true
+systemctl enable docker
+systemctl start docker
+usermod -aG docker ec2-user || true
+chmod 666 /var/run/docker.sock || true
+sleep 5
+
+docker network create sibu-net || true
+
+DATA_IP="${data_ip}"
+
+# Wait dependencies
+echo "Waiting for Postgres (reports DB) at $DATA_IP:5432 ..."
+for i in {1..90}; do
+  if nc -z "$DATA_IP" 5432 >/dev/null 2>&1; then
+    echo "Postgres reachable"
+    break
+  fi
+  echo "Postgres not ready yet ($i)..."
+  sleep 2
+done
+
+echo "Waiting for Kafka at $DATA_IP:29092 ..."
+for i in {1..90}; do
+  if nc -z "$DATA_IP" 29092 >/dev/null 2>&1; then
+    echo "Kafka reachable"
+    break
+  fi
+  echo "Kafka not ready yet ($i)..."
+  sleep 2
+done
+
+echo "Waiting for RabbitMQ at $DATA_IP:5672 ..."
+for i in {1..90}; do
+  if nc -z "$DATA_IP" 5672 >/dev/null 2>&1; then
+    echo "RabbitMQ reachable"
+    break
+  fi
+  echo "RabbitMQ not ready yet ($i)..."
+  sleep 2
+done
+
+docker pull jccasav/sibu-reports:qa
+docker rm -f sibu-reports || true
+
+# IMPORTANT:
+# - container listens on 8007 (your image)
+# - expose externally on 8005
+# - image expects:
+#   - Postgres at hostname reports_postgres (db=reports, user=reports, pass=reports)
+#   - Kafka at hostname kafka
+#   - RabbitMQ at hostname rabbitmq
+docker run -d --name sibu-reports --restart always \
+  -p 8005:8007 \
+  --network sibu-net \
+  --add-host reports_postgres:$DATA_IP \
+  --add-host kafka:$DATA_IP \
+  --add-host rabbitmq:$DATA_IP \
+  jccasav/sibu-reports:qa
+
+sleep 3
+curl -sS http://127.0.0.1:8005/health || true

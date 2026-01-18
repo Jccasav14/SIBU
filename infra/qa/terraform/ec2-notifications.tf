@@ -6,7 +6,7 @@ resource "aws_instance" "notifications" {
   subnet_id              = data.aws_subnets.default.ids[0]
 
   # Runs 3 services on a single instance (notifications + claims + coverage)
-  user_data = templatefile("${path.module}/../../user_data/insurance.sh.tftpl", {
+  user_data = templatefile("${path.module}/../user_data/insurance.sh.tftpl", {
     data_ip = aws_instance.data.private_ip
     DATA_IP = aws_instance.data.private_ip
   })

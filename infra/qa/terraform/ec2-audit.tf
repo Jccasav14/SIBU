@@ -5,7 +5,7 @@ resource "aws_instance" "audit" {
   vpc_security_group_ids = [aws_security_group.sibu_sg.id]
   subnet_id              = data.aws_subnets.default.ids[0]
 
-  user_data = templatefile("${path.module}/../../user_data/audit.sh.tftpl", {
+  user_data = templatefile("${path.module}/../user_data/audit.sh.tftpl", {
     data_ip = aws_instance.data.private_ip
   })
 

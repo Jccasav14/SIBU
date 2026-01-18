@@ -5,7 +5,7 @@ resource "aws_instance" "data" {
   vpc_security_group_ids = [aws_security_group.sibu_sg.id]
   subnet_id              = data.aws_subnets.default.ids[0]
 
-  user_data = templatefile("${path.module}/../../user_data/data.sh.tftpl", {})
+  user_data = templatefile("${path.module}/../user_data/data.sh.tftpl", {})
 
   root_block_device {
     volume_type = "gp3"

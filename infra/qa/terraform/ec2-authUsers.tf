@@ -8,7 +8,7 @@ resource "aws_instance" "authUsers" {
   # Runs BOTH containers on the same host:
   # - Auth  -> host port 8000
   # - Users -> host port 8001
-  user_data = templatefile("${path.module}/../../user_data/authUsers.sh.tftpl", {
+  user_data = templatefile("${path.module}/../user_data/authUsers.sh.tftpl", {
     data_ip = aws_instance.data.private_ip
   })
 
