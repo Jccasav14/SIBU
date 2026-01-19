@@ -7,6 +7,7 @@ on:
       - 'feature/**'
     paths-ignore:
       - 'terraform/**'
+
   pull_request:
     branches:
       - qa
@@ -24,28 +25,42 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # -------------------------------------------------
+      # Checkout
+      # -------------------------------------------------
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Fetch all remote refs (required for nx affected)
-        shell: bash
+      # -------------------------------------------------
+      # Necesario para nx affected
+      # -------------------------------------------------
+      - name: Fetch all remote refs
         run: |
           git fetch --no-tags --prune origin +refs/heads/*:refs/remotes/origin/*
 
+      # -------------------------------------------------
+      # Node
+      # -------------------------------------------------
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
+      # -------------------------------------------------
+      # Python
+      # -------------------------------------------------
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
 
+      # -------------------------------------------------
+      # Install deps
+      # -------------------------------------------------
       - name: Install npm deps
         run: npm ci
 
@@ -56,6 +71,9 @@ jobs:
             pip install -r "$req"
           done
 
+      # -------------------------------------------------
+      # Detect base/head CORRECTO
+      # -------------------------------------------------
       - name: Detect base/head for nx affected
         id: nx-vars
         shell: bash
@@ -64,18 +82,40 @@ jobs:
             echo "base=${{ github.event.pull_request.base.sha }}" >> "$GITHUB_OUTPUT"
             echo "head=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
           else
-            # En pushes: NO usar github.event.before (puede romperse con force-push)
-            # Base estable contra qa
-            echo "base=origin/qa" >> "$GITHUB_OUTPUT"
-            echo "head=HEAD" >> "$GITHUB_OUTPUT"
+            if [[ "${{ github.ref_name }}" == "qa" ]]; then
+              # Push directo a qa → comparar contra commit anterior
+              echo "base=HEAD^" >> "$GITHUB_OUTPUT"
+              echo "head=HEAD" >> "$GITHUB_OUTPUT"
+            else
+              # Push a feature/** → comparar contra qa
+              BASE_SHA="$(git merge-base origin/qa HEAD)"
+              echo "base=$BASE_SHA" >> "$GITHUB_OUTPUT"
+              echo "head=HEAD" >> "$GITHUB_OUTPUT"
+            fi
           fi
 
+      # -------------------------------------------------
+      # (Opcional pero recomendado) Debug
+      # -------------------------------------------------
+      - name: Debug affected projects
+        run: |
+          npx nx print-affected \
+            --base=${{ steps.nx-vars.outputs.base }} \
+            --head=${{ steps.nx-vars.outputs.head }} \
+            --select=projects
+
+      # -------------------------------------------------
+      # Tests (SOLO proyectos afectados)
+      # -------------------------------------------------
       - name: Run tests (affected only)
         run: |
           npx nx affected -t test \
             --base=${{ steps.nx-vars.outputs.base }} \
             --head=${{ steps.nx-vars.outputs.head }}
 
+      # -------------------------------------------------
+      # Docker login (solo en push)
+      # -------------------------------------------------
       - name: Docker login
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -83,6 +123,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # -------------------------------------------------
+      # Docker build & push (affected only)
+      # -------------------------------------------------
       - name: Docker build & push (affected only)
         if: github.event_name == 'push'
         env:

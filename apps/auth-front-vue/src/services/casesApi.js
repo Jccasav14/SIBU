@@ -3,7 +3,7 @@ import axios from 'axios'
 import { auth } from '../stores/auth'
 import { normalizeApiError } from './api'
 
-const base = import.meta.env.VITE_CASES_BASE_URL || import.meta.env.VITE_CASES_URL || 'http://localhost:8003'
+const base = import.meta.env.VITE_CASES_BASE_URL || import.meta.env.VITE_CASES_URL
 const normalizedBase = String(base).replace(/\/$/, '')
 
 export const casesApi = axios.create({

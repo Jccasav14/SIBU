@@ -2,10 +2,11 @@
 set -euxo pipefail
 
 # ==============================================
-# SIBU QA Frontend + Reverse Proxy (Nginx)
-# - Runs the frontend container on localhost:8080
-# - Exposes :80 publicly
-# - Proxies /auth, /users, /cases, /appointments, etc. to private IPs
+# SIBU Frontend + Reverse Proxy (Nginx)
+# - Frontend container on localhost:8080 (host port 8080)
+# - Nginx exposes :80 publicly
+# - Proxies API routes to private IPs with path prefixes:
+#   /auth, /users, /cases, /appointments, /audit, /reports, /admin, /notifications, /claims, /coverage
 # ==============================================
 
 dnf update -y
@@ -41,30 +42,50 @@ server {
   listen 80 default_server;
   server_name _;
 
-  # ---- CORS (QA) ----
+  # ---- CORS ----
   add_header Access-Control-Allow-Origin "*" always;
   add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
   add_header Access-Control-Allow-Headers "Authorization, Content-Type, Accept, Origin, X-Requested-With" always;
   add_header Access-Control-Expose-Headers "Authorization" always;
   if ($request_method = OPTIONS) { return 204; }
 
-  # ---- API ROUTES ----
-  location /auth/          { proxy_pass http://${auth_users_ip}:8000/; }
-  location /users/         { proxy_pass http://${auth_users_ip}:8001/; }
+  # ---- Proxy headers ----
+  proxy_set_header Host $host;
+  proxy_set_header X-Real-IP $remote_addr;
+  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header X-Forwarded-Proto $scheme;
 
-  location /cases/         { proxy_pass http://${cases_ip}:8002/; }
-  location /appointments/  { proxy_pass http://${appointments_ip}:8003/; }
+  # ---- Swagger helper (FastAPI behind /auth prefix) ----
+  # When you open /auth/docs, Swagger sometimes requests /openapi.json (no prefix).
+  # Redirect it to /auth/openapi.json.
+  location = /openapi.json {
+    return 301 /auth/openapi.json;
+  }
 
-  location /audit/         { proxy_pass http://${audit_ip}:8004/; }
+  # =============================
+  # AUTH (prefix /auth) - IMPORTANT:
+  # proxy_pass WITHOUT trailing slash to avoid stripping /auth
+  # =============================
+  location /auth/ { proxy_pass http://${auth_users_ip}:8000; }
 
-  # Admin + Reports share the same EC2
-  location /reports/       { proxy_pass http://${admin_reports_ip}:8005/; }
-  location /admin/         { proxy_pass http://${admin_reports_ip}:8006/; }
+  # USERS (prefix /users) -> service users should serve /users/*
+  location /users/ { proxy_pass http://${auth_users_ip}:8001; }
 
-  # Insurance EC2 hosts notifications + claims + coverage
-  location /notifications/ { proxy_pass http://${insurance_ip}:8007/; }
-  location /claims/        { proxy_pass http://${insurance_ip}:8009/; }
-  location /coverage/      { proxy_pass http://${insurance_ip}:8010/; }
+  # CASES / APPOINTMENTS
+  location /cases/        { proxy_pass http://${cases_ip}:8002; }
+  location /appointments/ { proxy_pass http://${appointments_ip}:8003; }
+
+  # AUDIT
+  location /audit/ { proxy_pass http://${audit_ip}:8004; }
+
+  # REPORTS + ADMIN (same EC2)
+  location /reports/ { proxy_pass http://${admin_reports_ip}:8005; }
+  location /admin/   { proxy_pass http://${admin_reports_ip}:8006; }
+
+  # INSURANCE (notifications + claims + coverage)
+  location /notifications/ { proxy_pass http://${insurance_ip}:8007; }
+  location /claims/        { proxy_pass http://${insurance_ip}:8009; }
+  location /coverage/      { proxy_pass http://${insurance_ip}:8010; }
 
   # ---- FRONTEND (container) ----
   location / {
@@ -80,7 +101,6 @@ systemctl restart nginx
 # -----------------------------
 # Run frontend container
 # -----------------------------
-
 FRONTEND_IMAGE="${frontend_image}"
 
 docker pull "$FRONTEND_IMAGE"
@@ -93,7 +113,10 @@ docker run -d \
   "$FRONTEND_IMAGE"
 
 sleep 2
+
+# Quick checks
 curl -sS -I http://127.0.0.1/ || true
-curl -sS -I http://127.0.0.1/auth/ || true
+curl -sS -I http://127.0.0.1/auth/health || true
+curl -sS -I http://127.0.0.1/auth/openapi.json | head -n 1 || true
 
 echo "Frontend + Nginx proxy ready on port 80."

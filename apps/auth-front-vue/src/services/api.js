@@ -2,7 +2,7 @@ import axios from 'axios'
 import { auth } from '../stores/auth'
 
 // WEB: VITE_AUTH_BASE_URL | MOBILE: VITE_AUTH_URL
-const base = import.meta.env.VITE_AUTH_BASE_URL || import.meta.env.VITE_AUTH_URL || import.meta.env.VITE_AUTH_URL || 'http://localhost:8000'
+const base = import.meta.env.VITE_AUTH_BASE_URL || import.meta.env.VITE_AUTH_URL || import.meta.env.VITE_AUTH_URL
 const normalizedBase = String(base).replace(/\/$/, '')
 
 export const api = axios.create({

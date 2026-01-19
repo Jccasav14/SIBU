@@ -3,7 +3,7 @@ import axios from 'axios'
 import { auth } from '../stores/auth'
 import { normalizeApiError } from './api'
 
-const base = import.meta.env.VITE_APPOINTMENTS_BASE_URL || import.meta.env.VITE_APPOINTMENTS_URL || 'http://localhost:8005'
+const base = import.meta.env.VITE_APPOINTMENTS_BASE_URL || import.meta.env.VITE_APPOINTMENTS_URL
 const normalizedBase = String(base).replace(/\/$/, '')
 
 export const appointmentsApi = axios.create({

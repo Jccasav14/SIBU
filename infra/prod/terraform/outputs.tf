@@ -16,7 +16,12 @@ output "service_public_ips" {
     reports      = aws_instance.admin_reports.public_ip
     notifications = aws_instance.notifications.public_ip
     admin        = aws_instance.admin_reports.public_ip
-    frontend     = aws_instance.frontend.public_ip
+    # Frontend is behind an ALB in PROD
+    frontend_alb = aws_lb.frontend.dns_name
     bastion      = aws_instance.bastion.public_ip
   }
+}
+
+output "frontend_url" {
+  value = "http://${aws_lb.frontend.dns_name}"
 }

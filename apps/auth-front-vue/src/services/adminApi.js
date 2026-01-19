@@ -3,7 +3,7 @@ import axios from "axios";
 import { auth } from "../stores/auth";
 import { normalizeApiError } from "./api";
 
-const base = import.meta.env.VITE_ADMIN_BASE_URL || import.meta.env.VITE_ADMIN_URL || "http://localhost:8008";
+const base = import.meta.env.VITE_ADMIN_BASE_URL || import.meta.env.VITE_ADMIN_URL;
 const normalizedBase = String(base).replace(/\/$/, "");
 
 export const adminApi = axios.create({

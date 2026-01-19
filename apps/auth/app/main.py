@@ -38,7 +38,7 @@ async def startup():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Start Kafka producer (degraded mode if Kafka is down)sdsSDASDSADSSssssassasa
+    # Start Kafka producer (degraded mode if Kafka is down)sdsSDASDSADSSssssassasassdsafdasdasd
     bootstrap = os.getenv("KAFKA_BOOTSTRAP", "kafka:9092")
     await kafka_start(bootstrap)
 

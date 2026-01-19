@@ -9,7 +9,7 @@ function normalizeListResponse(data){
   return []
 }
 
-const base = import.meta.env.VITE_CLAIMS_BASE_URL || import.meta.env.VITE_CLAIMS_URL || 'http://localhost:8009'
+const base = import.meta.env.VITE_CLAIMS_BASE_URL || import.meta.env.VITE_CLAIMS_URL
 const normalizedBase = String(base).replace(/\/$/, '')
 
 const http = axios.create({
