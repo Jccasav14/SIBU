@@ -4,13 +4,13 @@ on:
   push:
     branches: ["qa"]
     paths:
-      - "infra/**"
+      - "infra/qa/**"
       - ".github/workflows/qa-infra.yml"
       # Evita loop: no dispares el workflow cuando solo cambie el state
-      - "!infra/terraform/state/qa/**"
+      - "!infra/qa/terraform/state/**"
 
 concurrency:
-  group: qa-infra
+  group: qa-infra-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -19,7 +19,6 @@ jobs:
     permissions:
       contents: write
 
-    # Extra anti-loop: si el push lo hizo el bot, no corras
     if: github.actor != 'github-actions[bot]'
 
     env:
@@ -32,7 +31,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Configure AWS credentials (AWS Academy)
+      - name: Configure AWS credentials (QA)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
@@ -46,7 +45,7 @@ jobs:
           terraform_version: 1.6.6
 
       - name: Restore QA state from repo
-        working-directory: infra/terraform
+        working-directory: infra/qa/terraform
         run: |
           mkdir -p state/qa
           if [ -f state/qa/terraform.tfstate ]; then
@@ -57,23 +56,23 @@ jobs:
           fi
 
       - name: Terraform Init
-        working-directory: infra/terraform
+        working-directory: infra/qa/terraform
         run: terraform init -reconfigure
 
       - name: Terraform Validate
-        working-directory: infra/terraform
+        working-directory: infra/qa/terraform
         run: terraform validate
 
       - name: Terraform Plan
-        working-directory: infra/terraform
+        working-directory: infra/qa/terraform
         run: terraform plan -out=tfplan
 
       - name: Terraform Apply
-        working-directory: infra/terraform
+        working-directory: infra/qa/terraform
         run: terraform apply -auto-approve tfplan
 
       - name: Save updated QA state into repo
-        working-directory: infra/terraform
+        working-directory: infra/qa/terraform
         run: |
           mkdir -p state/qa
           cp terraform.tfstate state/qa/terraform.tfstate
@@ -86,10 +85,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add infra/terraform/state/qa/terraform.tfstate infra/terraform/state/qa/terraform.tfstate.backup || true
+          git add infra/qa/terraform/state/qa/terraform.tfstate infra/qa/terraform/state/qa/terraform.tfstate.backup || true
           git diff --cached --quiet && echo "No state changes to commit" && exit 0
 
-          git commit -m "chore(qa): update terraform state"
-
-          # Push de vuelta a la misma rama qa
+          git commit -m "chore(qa): update terraform state [skip ci]"
           git push origin HEAD:qa

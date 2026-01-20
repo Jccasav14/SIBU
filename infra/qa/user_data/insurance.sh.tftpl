@@ -1,0 +1,133 @@
+#!/bin/bash
+set -eux
+
+dnf update -y
+dnf install -y docker nmap-ncat
+
+# -----------------------------
+# Swap (prevents OOM lockups on small instances)
+# -----------------------------
+if ! swapon --show | grep -q "^/swapfile"; then
+  (fallocate -l 1G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=1024) >/dev/null 2>&1 || true
+  chmod 600 /swapfile || true
+  mkswap /swapfile >/dev/null 2>&1 || true
+  swapon /swapfile || true
+  grep -q "^/swapfile " /etc/fstab 2>/dev/null || echo "/swapfile swap swap defaults 0 0" >> /etc/fstab
+fi
+
+groupadd -f docker || true
+systemctl enable docker
+systemctl start docker
+usermod -aG docker ec2-user || true
+chmod 666 /var/run/docker.sock || true
+sleep 5
+
+docker network create sibu-net || true
+
+# --- DATA endpoints (DATA instance private IP) ---
+DATA_IP="${data_ip}"
+
+# --- Wait for DATA ports (Postgres/Kafka/Rabbit/Redis) ---
+for port in 5432 29092 5672 6379; do
+  echo "Waiting for DATA $${DATA_IP}:$${port} ..."
+  for i in {1..90}; do
+    if nc -z "$${DATA_IP}" "$${port}" >/dev/null 2>&1; then
+      echo "DATA $${DATA_IP}:$${port} reachable"
+      break
+    fi
+    echo "Not ready yet ($${i})..."
+    sleep 2
+  done
+done
+
+# --- Common env (BASH vars) ---
+COMMON_DSN="postgresql+asyncpg://sibu:sibu@$${DATA_IP}:5432/sibu"
+REDIS_URL="redis://$${DATA_IP}:6379/0"
+RABBIT_URL="amqp://guest:guest@$${DATA_IP}:5672/"
+KAFKA_BOOTSTRAP="$${DATA_IP}:29092"
+
+JWT_SECRET="SIBU_SUPER_SECRET_CAMBIAME"
+JWT_ALGORITHM="HS256"
+
+# =========================================================
+# NOTIFICATIONS (container listens 8004, expose ONLY 8007)
+# =========================================================
+docker pull jccasav/sibu-notifications:qa
+docker rm -f sibu-notifications || true
+docker run -d --name sibu-notifications --restart always \
+  --network sibu-net \
+  -p 8007:8004 \
+  --add-host postgres:$${DATA_IP} \
+  --add-host db:$${DATA_IP} \
+  --add-host redis:$${DATA_IP} \
+  --add-host rabbitmq:$${DATA_IP} \
+  --add-host kafka:$${DATA_IP} \
+  -e DATABASE_URL="$${COMMON_DSN}" \
+  -e POSTGRES_DSN="$${COMMON_DSN}" \
+  -e DB_HOST="$${DATA_IP}" -e DB_PORT="5432" \
+  -e PGHOST="$${DATA_IP}" -e PGPORT="5432" \
+  -e REDIS_URL="$${REDIS_URL}" \
+  -e RABBITMQ_URL="$${RABBIT_URL}" \
+  -e KAFKA_BOOTSTRAP_SERVERS="$${KAFKA_BOOTSTRAP}" \
+  -e JWT_SECRET="$${JWT_SECRET}" -e JWT_ALGORITHM="$${JWT_ALGORITHM}" \
+  jccasav/sibu-notifications:qa
+
+# =========================================================
+# CLAIMS (listens 8009, MUST set CLAIMS_POSTGRES_DSN)
+# =========================================================
+docker pull jccasav/sibu-claims:qa
+docker rm -f sibu-claims || true
+docker run -d --name sibu-claims --restart always \
+  --network sibu-net \
+  -p 8009:8009 \
+  --add-host postgres:$${DATA_IP} \
+  --add-host db:$${DATA_IP} \
+  --add-host redis:$${DATA_IP} \
+  --add-host rabbitmq:$${DATA_IP} \
+  --add-host kafka:$${DATA_IP} \
+  --add-host claims-postgres:$${DATA_IP} \
+  -e CLAIMS_POSTGRES_DSN="$${COMMON_DSN}" \
+  -e DATABASE_URL="$${COMMON_DSN}" \
+  -e POSTGRES_DSN="$${COMMON_DSN}" \
+  -e DB_HOST="$${DATA_IP}" -e DB_PORT="5432" \
+  -e PGHOST="$${DATA_IP}" -e PGPORT="5432" \
+  -e REDIS_URL="$${REDIS_URL}" \
+  -e RABBITMQ_URL="$${RABBIT_URL}" \
+  -e KAFKA_BOOTSTRAP_SERVERS="$${KAFKA_BOOTSTRAP}" \
+  -e JWT_SECRET="$${JWT_SECRET}" -e JWT_ALGORITHM="$${JWT_ALGORITHM}" \
+  jccasav/sibu-claims:qa
+
+# =========================================================
+# COVERAGE (uvicorn runs 8010, MUST set COVERAGE_POSTGRES_DSN)
+# =========================================================
+docker pull jccasav/sibu-coverage:qa
+docker rm -f sibu-coverage || true
+docker run -d --name sibu-coverage --restart always \
+  --network sibu-net \
+  -p 8010:8010 \
+  --add-host postgres:$${DATA_IP} \
+  --add-host db:$${DATA_IP} \
+  --add-host redis:$${DATA_IP} \
+  --add-host rabbitmq:$${DATA_IP} \
+  --add-host kafka:$${DATA_IP} \
+  -e COVERAGE_POSTGRES_DSN="$${COMMON_DSN}" \
+  -e DATABASE_URL="$${COMMON_DSN}" \
+  -e POSTGRES_DSN="$${COMMON_DSN}" \
+  -e DB_HOST="$${DATA_IP}" -e DB_PORT="5432" \
+  -e PGHOST="$${DATA_IP}" -e PGPORT="5432" \
+  -e REDIS_URL="$${REDIS_URL}" \
+  -e RABBITMQ_URL="$${RABBIT_URL}" \
+  -e KAFKA_BOOTSTRAP_SERVERS="$${KAFKA_BOOTSTRAP}" \
+  -e JWT_SECRET="$${JWT_SECRET}" -e JWT_ALGORITHM="$${JWT_ALGORITHM}" \
+  jccasav/sibu-coverage:qa
+
+# ---------------------------------------------------------
+# Quick local checks (non-failing)
+# ---------------------------------------------------------
+sleep 3
+curl -sS http://127.0.0.1:8007/health || true
+curl -sS http://127.0.0.1:8009/health || true
+curl -sS http://127.0.0.1:8010/health || true
+curl -sS http://127.0.0.1:8010/docs || true
+
+docker rm -f claims-debug || true

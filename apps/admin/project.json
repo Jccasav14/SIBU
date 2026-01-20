@@ -7,14 +7,15 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": ".",
-        "command": ".\\.venv\\Scripts\\python.exe -m uvicorn apps.admin.app.main:app --host 0.0.0.0 --port 8008 --reload"
+        "command": "python -m uvicorn apps.admin.app.main:app --host 0.0.0.0 --port 8008 --reload"
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "cwd": "apps/admin",
-        "command": "pytest -q"
+        "cwd": ".",
+        "command": "npx cross-env PYTHONPATH=. python -m pytest -q --import-mode=importlib apps/admin/tests"
+
       }
     },
     "lint": {
@@ -28,7 +29,14 @@
       "executor": "nx:run-commands",
       "options": {
         "cwd": ".",
-        "command": "docker build -f apps/admin/Dockerfile -t sibu-admin:local ."
+        "command": "docker build -f apps/admin/Dockerfile -t jccasav/sibu-admin:local ."
+      }
+    },
+    "docker-push": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": ".",
+        "command": "bash tools/docker/push.sh admin"
       }
     }
   }

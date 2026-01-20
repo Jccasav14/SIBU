@@ -6,29 +6,37 @@
     "serve": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "python -m uvicorn apps.appointments.app.main:app --host 0.0.0.0 --port 8005 --reload",
-        "cwd": "."
+        "cwd": ".",
+        "command": "python -m uvicorn apps.appointments.app.main:app --host 0.0.0.0 --port 8005 --reload"
       }
     },
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "pytest",
-        "cwd": "apps/appointments"
+        "cwd": ".",
+        "command": "npx cross-env PYTHONPATH=. python -m pytest -q --import-mode=importlib apps/appointments/tests"
+
       }
     },
     "lint": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "python -m compileall app",
-        "cwd": "apps/appointments"
+        "cwd": "apps/appointments",
+        "command": "python -m compileall app"
       }
     },
     "docker-build": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "docker build -f apps/appointments/Dockerfile -t sibu-appointments .",
-        "cwd": "."
+        "cwd": ".",
+        "command": "docker build -f apps/appointments/Dockerfile -t jccasav/sibu-appointments:local ."
+      }
+    },
+    "docker-push": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": ".",
+        "command": "bash tools/docker/push.sh appointments"
       }
     }
   }

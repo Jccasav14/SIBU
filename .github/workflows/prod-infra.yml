@@ -1,0 +1,93 @@
+name: PROD Infra (Terraform apply)
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "infra/prod/**"
+      - ".github/workflows/prod-infra.yml"
+      # Evita loop: no dispares el workflow cuando solo cambie el state
+      - "!infra/prod/terraform/state/**"
+
+concurrency:
+  group: prod-infra-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    # Doble seguro: solo main y anti-loop bot
+    if: github.ref == 'refs/heads/main' && github.actor != 'github-actions[bot]'
+
+    env:
+      AWS_REGION: us-east-1
+      TF_IN_AUTOMATION: "true"
+
+    steps:
+      - name: Checkout (main)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials (PROD - otro lab)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN_PROD }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Restore PROD state from repo
+        working-directory: infra/prod/terraform
+        run: |
+          mkdir -p state/prod
+          if [ -f state/prod/terraform.tfstate ]; then
+            cp state/prod/terraform.tfstate terraform.tfstate
+          fi
+          if [ -f state/prod/terraform.tfstate.backup ]; then
+            cp state/prod/terraform.tfstate.backup terraform.tfstate.backup
+          fi
+
+      - name: Terraform Init
+        working-directory: infra/prod/terraform
+        run: terraform init -reconfigure
+
+      - name: Terraform Validate
+        working-directory: infra/prod/terraform
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: infra/prod/terraform
+        run: terraform plan -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: infra/prod/terraform
+        run: terraform apply -auto-approve tfplan
+
+      - name: Save updated PROD state into repo
+        working-directory: infra/prod/terraform
+        run: |
+          mkdir -p state/prod
+          cp terraform.tfstate state/prod/terraform.tfstate
+          if [ -f terraform.tfstate.backup ]; then
+            cp terraform.tfstate.backup state/prod/terraform.tfstate.backup
+          fi
+
+      - name: Commit state (if changed)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add infra/prod/terraform/state/prod/terraform.tfstate infra/prod/terraform/state/prod/terraform.tfstate.backup || true
+          git diff --cached --quiet && echo "No state changes to commit" && exit 0
+
+          git commit -m "chore(prod): update terraform state [skip ci]"
+          git push origin HEAD:main

@@ -3,7 +3,7 @@ import axios from 'axios'
 import { auth } from '../stores/auth'
 import { normalizeApiError } from './api'
 
-const base = import.meta.env.VITE_USERS_BASE_URL || import.meta.env.VITE_USERS_BASE || import.meta.env.VITE_USERS_URL || 'http://localhost:8001'
+const base = import.meta.env.VITE_USERS_BASE_URL || import.meta.env.VITE_USERS_BASE || import.meta.env.VITE_USERS_URL
 const normalizedBase = String(base).replace(/\/$/, '')
 
 // OJO: aquí NO le sumes /auth. Users normalmente va en /users/...

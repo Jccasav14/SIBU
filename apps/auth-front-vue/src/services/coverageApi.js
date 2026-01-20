@@ -9,7 +9,7 @@ function normalizeListResponse(data){
   return []
 }
 
-const base = import.meta.env.VITE_COVERAGE_BASE_URL || import.meta.env.VITE_COVERAGE_URL || 'http://localhost:8010'
+const base = import.meta.env.VITE_COVERAGE_BASE_URL || import.meta.env.VITE_COVERAGE_URL
 const normalizedBase = String(base).replace(/\/$/, '')
 
 const http = axios.create({

@@ -9,7 +9,7 @@ from .infrastructure.messaging.user_events_worker import kafka_user_events_worke
 from prometheus_fastapi_instrumentator import Instrumentator
 
 
-
+#sss
 app = FastAPI(title="SIBU Users")
 Instrumentator().instrument(app).expose(app, endpoint="/metrics")
 app.add_middleware(

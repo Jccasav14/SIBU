@@ -69,7 +69,7 @@ const login = async () => {
   loading.value = true;
 
   try {
-    const base = import.meta.env.VITE_AUTH_BASE_URL || "http://localhost:8000";
+    const base = import.meta.env.VITE_AUTH_BASE_URL;
 
     // 1) LOGIN (JSON) — según tu Swagger
     const res = await fetch(`${base}/auth/login`, {
